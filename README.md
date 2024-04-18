@@ -176,39 +176,3 @@ In a similar way, all other files and components can be customized easily.
 
 <br />
 
-## Deploy on [Render](https://render.com/)
-
-- Create a Blueprint instance
-  - Go to https://dashboard.render.com/blueprints this link.
-- Click `New Blueprint Instance` button.
-- Connect your `repo` which you want to deploy.
-- Fill the `Service Group Name` and click on `Update Existing Resources` button.
-- After that your deployment will start automatically.
-
-At this point, the product should be LIVE.
-
-<br />
-
-## [PRO Version](https://appseed.us/product/berry-dashboard-pro/django/)   
-
-This design is a pixel-perfect [Bootstrap 5](https://www.admin-dashboards.com/bootstrap-5-templates/) Dashboard with a fresh, new design inspired by Google's Material Design. `Material Dashboard 2 PRO` is built with over 300 frontend individual elements, like buttons, inputs, navbars, nav tabs, cards, or alerts, giving you the freedom of choosing and combining.
-
-> Features: 
-
-- `Up-to-date Dependencies`
-- `Design`: [Django Theme Berry](https://github.com/app-generator/django-admin-berry-pro) - `PRO Version`
-- `Sections` covered by the design:
-  - **Admin section** (reserved for superusers)
-  - **Authentication**: `Django.contrib.AUTH`, Registration
-  - **All Pages** available in for ordinary users 
-- `Docker`, `Deployment`:
-  - `CI/CD` flow via `Render`
-
-<br />
-
-![Berry Bootstrap 5 PRO - Premium Template Django Template.](https://user-images.githubusercontent.com/51070104/210833058-be0b3e87-4f2b-4765-b84d-3795ba03c6a1.jpg)
-
-<br />
-
----
-[Django Berry Dashboard](https://appseed.us/product/berry-dashboard/django/) - Minimal **Django** starter provided by **[AppSeed](https://appseed.us/)**
