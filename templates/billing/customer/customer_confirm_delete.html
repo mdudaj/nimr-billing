@@ -1,0 +1,20 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Delete Customer {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Delete Customer</h1>
+    </div>
+    <div class="ui segment">
+        <p>Are you sure you want to delete the customer "{{ customer.first_name }} {{ customer.middle_name }} {{ customer.last_name }}"?</p>
+        <form method="post" action="{% url 'billing:customer-delete' customer.id %}">
+            {% csrf_token %}
+            <button class="ui red button" type="submit">Delete</button>
+            <a href="{% url 'billing:customer-list' %}" class="ui button">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock content %}

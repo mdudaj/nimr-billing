@@ -1,0 +1,46 @@
+{% load static formset_tags billing_extras %}
+
+<!-- The empty form template -->
+<script type="form-template" data-formset-empty-form>
+    {% escapescript %}
+     <div class="ui form" data-formset-form>
+          {% if form.id %}
+          <div class="field hidden" style="display: none;">
+               {{ form.id }}
+          </div>
+          {% endif %}
+          {% with visible_fields=form.visible_fields %}
+          <div class="{{ visible_fields|length|number_to_words }} fields">          
+               {% for field in form.visible_fields %}
+               {% if field.name != 'DELETE' %}
+               <div class="{% if visible_fields|length == 2 %}eight wide{% else %}equal width {% endif %} field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="ui pointing label">
+                         {{ field.help_text }}
+                    </div>
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="ui pointing red basic label">
+                         {{ field.errors|join:", " }}
+                    </div>
+                    {% endif %}
+               </div>
+               {% else %}
+               <div class="field" style="display: none;">
+                    {{ field }}
+               </div>
+               <div class="field">
+                    <button class="ui icon red button" data-formset-delete-button>
+                         <i class="trash icon"></i>
+                    </button>
+               </div>
+               {% endif %}
+               {% endfor %}
+          </div>
+          {% endwith %}
+     </div>
+   {% endescapescript %}
+</script>
+<!-- End the empty form template -->

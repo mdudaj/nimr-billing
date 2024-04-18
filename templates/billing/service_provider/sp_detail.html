@@ -1,0 +1,53 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Service Provider Details {% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="sixteen wide column">
+        <div class="ui clearing basic segment">
+            <h1 class="ui left floated header">{{ sp.name }}</h1>
+            <a href="{% url 'billing:sp-list' %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Back to Service Provider List</div>
+                <div class="hidden content centered">
+                    <i class="arrow left icon"></i>
+                </div>
+            </a>
+        </div>
+        <div class="ui segments">
+            <div class="ui segment">
+                <h2 class="ui header">{{ sserviceprovider.name }}</h2>
+                <p><strong>Service Provider Code:</strong> {{ serviceprovider.code }}</p>
+                <p><strong>Service Provider Group Code:</strong> {{ serviceprovider.grp_code }}</p>
+            </div>
+            <div class="ui segment">
+                <h2 class="ui header">Departments</h2>
+                <div class="ui very relaxed divided list">
+                    {% for department in serviceprovider.billingdepartment_set.all %}
+                    <div class="item">
+                        {{ department.name }}
+                        <div class="ui horizontal left pointing large label">
+                            {{ department.code }}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="item">No departments found</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="ui clearing basic segment">
+                <a href="{% url 'billing:sp-update' serviceprovider.pk %}" class="ui left floated primary button"
+                    tabindex="0">
+                    Update
+                </a>
+                <a href="{% url 'billing:sp-delete' serviceprovider.pk %}" class="ui right floated negative button"
+                    tabindex="0">
+                    Delete
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

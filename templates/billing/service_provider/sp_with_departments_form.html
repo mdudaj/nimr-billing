@@ -1,0 +1,53 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static formset_tags %}
+
+{% block title %} Service Provider Form {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">{% if is_update %}Update Service Provider{% else %}Create Service Provider{% endif %}
+        </h1>
+    </div>
+    <form class="ui form" method="post"
+        action="{% if is_update %}{% url 'billing:sp-update' serviceprovider.pk %}{% else %}{% url 'billing:sp-create' %}{% endif %}">
+        {% csrf_token %}
+        <div class="ui clearing basic segment">
+            {% for field in form %}
+            <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                <!-- Field help text -->
+                {% if field.help_text %}
+                <div class="ui info message">{{ field.help_text }}</div>
+                {% endif %}
+                <!-- Field errors -->
+                {% if field.errors %}
+                <div class="ui error message">
+                    <ul class="ui list">
+                        {% for error in field.errors %}
+                        <li class="item">{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                <!-- End field errors -->
+            </div>
+            {% endfor %}
+        </div>
+        {% include 'billing/service_provider/department_formset.html' with formset=billing_departments %}
+        <button class="ui button" type="submit">Submit</button>
+    </form>
+</div>
+{% endblock content %}
+
+{% block extrascript %}
+<script src="{% static 'js/jquery.formset.min.js' %}"></script>
+<script>
+    jQuery(function($){
+        $('#departments').formset({
+            animateforms: true
+        });
+    });
+</script>
+{% endblock extrascript %}

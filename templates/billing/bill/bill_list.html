@@ -1,0 +1,69 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Bill List {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Bill List</h1>
+        <a href="{% url 'billing:bill-create' %}" class="ui right floated vertical animated primary button"
+            tabindex="0">
+            <div class="visible content">Add bill</div>
+            <div class="hidden content centered">
+                <i class="plus square outline large icon"></i>
+            </div>
+        </a>
+    </div>
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>Bill Number</th>
+                <th>Issue Date</th>
+                <th>Customer</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Control Number</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in bill_list %}
+            <tr>
+                <td>{{ bill.bill_id }}</td>
+                <td>{{ bill.customer.get_name }}</td>
+                <td>{{ bill.gen_date }}</td>
+                <td>{{ bill.description }}</td>
+                <td>{{ bill.amt }}</td>
+                {% if bill.cntr_num %}
+                <td>{{ bill.cntr_num }}</td>
+                {% else %}
+                <td id="cntrnum">Still working on it ...</td>
+                {% endif %}
+                <td class="single line">
+                    <a href="{% url 'billing:bill-detail' bill.pk %}" class="ui icon large button primary"><i
+                            class="icon info"></i></a>
+                    <a href="{% url 'billing:bill-delete' bill.pk %}" class="ui icon large button negative"><i
+                            class="icon trash"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}
+
+{% block extrascript %}
+<script>
+    $(document).ready(function () {
+        const cntrnum = $('#cntrnum');
+        let dots = ['.', '..', '...'];
+        let index = 0;
+
+        setInterval(function () {
+            cntrnum.text('Still working on it' + dots[index]);
+            index = (index + 1) % dots.length;
+        }, 500); // Change the interval (in milliseconds) as needed
+    });
+</script>
+{% endblock extrascript %}

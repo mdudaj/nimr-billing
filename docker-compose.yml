@@ -1,0 +1,60 @@
+version: '3.8'
+services:
+  ws-app:
+    container_name: ws_app
+    restart: always
+    build: .
+    volumes:
+      - .:/app
+    networks:
+      - db_network
+      - web_network
+    depends_on:
+      - db
+      - redis
+
+  db:
+    container_name: ws_db
+    restart: always
+    image: postgis/postgis:latest
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ws_db-data:/var/lib/postgresql/data
+    networks:
+      - db_network
+
+  redis:
+    container_name: ws_redis
+    restart: always
+    image: redis:latest
+    volumes:
+      - ws_redis-data:/data
+    networks:
+      - db_network
+
+  nginx:
+    container_name: nginx
+    restart: always
+    image: "nginx:latest"
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    networks:
+      - web_network
+    depends_on:
+      - ws-app
+
+volumes:
+  ws_db-data:
+  ws_redis-data:
+
+
+networks:
+  db_network:
+    driver: bridge
+  web_network:
+    driver: bridge

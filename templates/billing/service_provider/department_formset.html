@@ -1,0 +1,18 @@
+{% load static formset_tags %}
+
+<div class="ui segments" id="departments" data-formset-prefix="{{ billing_departments.prefix }}">
+    {{ billing_departments.management_form }}
+    <div class="ui basic clearing segment">
+        <h4 class="ui left floated header">Billing Departments</h4>
+    </div>
+    <div class="ui segment" data-formset-body>
+        {% for form in billing_departments %}
+        {% include 'semantic-ui/includes/inline_form.html' with form=form %}
+        {% endfor %}
+        {% include 'semantic-ui/includes/inline_empty_form.html' with form=billing_departments.empty_form %}
+    </div>
+    <div class="ui clearing basic segment">
+        <button class="ui left floated primary button" data-formset-add>Add Billing Department</button>
+    </div>
+</div>
+

@@ -1,0 +1,71 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Bill Details {% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="sixteen wide column">
+        <div class="ui clearing basic segment">
+            <h1 class="ui left floated header">Bill Details</h1>
+            <a href="{% url 'billing:bill-list' %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Back to Bill divst</div>
+                <div class="hidden content centered">
+                    <i class="arrow left icon"></i>
+                </div>
+            </a>
+        </div>
+        <div class="ui segments">
+            <div class="ui segment">
+                <h2 class="ui header">{{ bill.bill_id }}</h2>
+                <p>Issue Date: {{ bill.gen_date }}</p>
+                <p>Customer: {{ bill.customer.get_name }}</p>
+                <p>Total Amount: {{ bill.amt }}</p>
+                {% if bill.cntr_num %}
+                <p>Control Number: {{ bill.cntr_num }}</p>
+                {% else %}
+                <p id="cntrnum">Control Number: Still working on it ...</p>
+                {% endif %}
+            </div>
+            <div class="ui horizontal segments">
+                <div class="ui segment">
+                    <h4 class="ui header">Bill Items</h4>
+                    <div class="ui very relaxed divided divst">
+                        {% for item in bill.billitem_set.all %}
+                        <div class="item">{{ item.rev_src }}</div>
+                        <div class="item">{{ item.description }}</div>
+                        <div class="item">{{ item.amt }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if bill.status != 'paid' %}
+        <div class="ui clearing basic segment">
+            <a href="{% url 'billing:bill-update' bill.pk %}" class="ui left floated primary button" tabindex="0">
+                Update
+            </a>
+            <a href="{% url 'billing:bill-delete' bill.pk %}" class="ui right floated negative button" tabindex="0">
+                Delete
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}
+
+{% block extrascript %}
+<script>
+    $(document).ready(function () {
+        const cntrnum = $('#cntrnum');
+        let dots = ['.', '..', '...'];
+        let index = 0;
+
+        setInterval(function () {
+            cntrnum.text('Control Number: Still working on it' + dots[index]);
+            index = (index + 1) % dots.length;
+        }, 500); // Change the interval (in milliseconds) as needed
+    });
+</script>
+{% endblock extrascript %}

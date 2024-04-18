@@ -1,0 +1,49 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Customer List {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Customer List</h1>
+        <a href="{% url 'billing:customer-create' %}" class="ui right floated vertical animated primary button"
+            tabindex="0">
+            <div class="visible content">Add Customer</div>
+            <div class="hidden content centered">
+                <i class="plus square outline large icon"></i>
+            </div>
+        </a>
+    </div>
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>TIN</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customer_list %}
+            <tr>
+                <td>{{ customer.pk }}</td>
+                <td><a href="{% url 'billing:customer-detail' customer.pk %}">{{ customer.first_name }} {{
+                        customer.middle_name }} {{ customer.last_name }}</a></td>
+                <td>{{ customer.tin }}</td>
+                <td>{{ customer.cell_num }}</td>
+                <td>{{ customer.email }}</td>
+                <td class="single line">
+                    <a href="{% url 'billing:customer-detail' customer.pk %}" class="ui icon large button primary"><i
+                            class="icon info"></i></a>
+                    <a href="{% url 'billing:customer-delete' customer.pk %}" class="ui icon large button negative"><i
+                            class="icon trash"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

@@ -1,0 +1,35 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Customer Detail {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Customer Detail</h1>
+        <a href="{% url 'billing:customer-list' %}" class="ui right floated vertical animated primary button"
+            tabindex="0">
+            <div class="visible content">Back to Customer List</div>
+            <div class="hidden content centered">
+                <i class="arrow left icon"></i>
+            </div>
+        </a>
+    </div>
+    <div class="ui segment">
+        <h2 class="ui header">{{ customer.get_name }}</h2>
+        <p><strong>Phone:</strong> {{ customer.cell_num }}</p>
+        <p><strong>Email:</strong> {{ customer.email }}</p>
+        <p><strong>TIN:</strong> {{ customer.tin }}</p>
+    </div>
+    <div class="ui clearing basic segment">
+        <a href="{% url 'billing:customer-update' customer.pk %}" class="ui left floated primary button"
+            tabindex="0">
+            Update
+        </a>
+        <a href="{% url 'billing:customer-delete' customer.pk %}" class="ui right floated negative button"
+            tabindex="0">
+            Delete
+        </a>
+    </div>
+</div>
+{% endblock content %}

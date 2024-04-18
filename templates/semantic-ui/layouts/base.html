@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% load static %}
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>{% block title %}{% endblock title %} | National Institute for Medical Research</title>
+    
+    {% include 'semantic-ui/includes/styles.html' %}
+
+    {% block extrastyle %}{% endblock extrastyle %}
+</head>
+
+<body>
+    <!-- sidebar -->
+    {% block leftsidebar %}
+    {% include 'semantic-ui/includes/sidebar.html' %}
+    {% endblock leftsidebar %}
+    <!-- sidebar -->
+
+    <!-- top nav -->
+    {% block topnav %}
+    {% include 'semantic-ui/includes/top-nav.html' %}
+    {% endblock topnav %}
+    <!-- top nav -->
+
+    <div class="pusher">
+        <div class="ui container grid main-content" style="margin-top: 60px;">
+            {% block content %}{% endblock content %}
+        </div>
+    </div>
+    <!-- Script -->
+    {% include 'semantic-ui/includes/scripts.html' %}
+
+    {% block extrascript %}{% endblock extrascript %}
+    <!-- End Script -->
+</body>
+
+</html>

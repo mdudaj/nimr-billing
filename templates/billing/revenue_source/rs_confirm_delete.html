@@ -1,0 +1,21 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Confirm Delete Revenue Stream {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <h1 class="ui header">Confirm Delete Revenue Stream</h1>
+    <div class="ui warning message">
+        <p>
+            Are you sure you want to delete the revenue stream 
+            <a href="{% url 'billing:rs-detail' revenuesource.pk  %}" class="ui large red tag label">{{ revenuesource.name }}</a>?
+        </p>
+    </div>
+    <form class="ui form" method="post" action="{% url 'billing:rs-delete' revenuesource.pk %}">
+        {% csrf_token %}
+        <button class="ui red button" type="submit">Delete</button>
+        <a href="{% url 'billing:rs-list' %}" class="ui button">Cancel</a>
+    </form>
+</div>
+{% endblock content %}

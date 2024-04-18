@@ -1,0 +1,31 @@
+{% load static %}
+
+<div class="ui inverted vertical menu sidebar visible sidebar-menu" id="sidebar">
+    <div class="item">
+        <div class="header">NIMR</div>
+        <div class="menu">
+            <a class="item" href="{% url 'billing:billing-index' %}">
+                <div>
+                    <i class="icon tachometer alternate"></i> Dashboard
+                </div>
+            </a>
+        </div>
+    </div>
+    <div class="item">
+        <div class="header"> Billing Management</div>
+        <div class="menu">
+            <a class="item" href="{% url 'billing:bill-list' %}">
+                <div><i class="clipboard list icon"></i>Bills</div>
+            </a>
+            <a class="item" href="{% url 'billing:customer-list' %}">
+                <div><i class="users icon"></i>Customers</div>
+            </a>
+            <a class="item" href="{% url 'billing:sp-list' %}">
+                <div><i class="building icon"></i>Service Providers</div>
+            </a>
+            <a class="item" href="{% url 'billing:rs-list' %}">
+                <div><i class="dollar sign icon"></i>Revenue Streams</div>
+            </a>
+        </div>
+    </div>
+</div>

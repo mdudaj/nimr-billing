@@ -1,0 +1,44 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Institution List {% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="sixteen wide column">
+        <div class="ui clearing basic segment">
+            <h1 class="ui left floated header">Service Provider List</h1>
+            <a href="{% url 'billing:sp-create' %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Add Institution</div>
+                <div class="hidden content centered">
+                    <i class="plus square outline large icon"></i>
+                </div>
+            </a>
+        </div>
+        <table class="ui basic striped table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Service Provider Code</th>
+                    <th>Service Provider Group Code</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sp in serviceprovider_list %}
+                <tr>
+                    <td>{{ sp.name }}</td>
+                    <td>{{ sp.code }}</td>
+                    <td>{{ sp.grp_code }}</td>
+                    <td>
+                        <a href="{% url 'billing:sp-detail' sp.pk %}" class="ui icon large button primary"><i class="icon info"></i></a>
+                        <a href="{% url 'billing:sp-delete' sp.pk %}" class="ui icon large button negative"><i class="icon trash"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock content %}

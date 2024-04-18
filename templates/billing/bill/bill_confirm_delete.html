@@ -1,0 +1,18 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Confirm Delete Bill {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <h1 class="ui header">Confirm Delete Bill</h1>
+    <div class="ui warning message">
+        <p>Are you sure you want to delete the bill "{{ bill.bill_id }} - {{ bill.description }}"?</p>
+    </div>
+    <form class="ui form" method="post" action="{% url 'billing:bill-delete' bill.pk %}">
+        {% csrf_token %}
+        <button class="ui red button" type="submit">Delete</button>
+        <a href="{% url 'billing:bill-list' %}" class="ui button">Cancel</a>
+    </form>
+</div>
+{% endblock content %}

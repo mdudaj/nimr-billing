@@ -1,0 +1,49 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} R evenue Stream Details {% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="sixteen wide column">
+        <div class="ui clearing basic segment">
+            <h1 class="ui left floated header">Revenue Stream Details</h1>
+            <a href="{% url 'billing:rs-list' %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Back to Revenue Stream List</div>
+                <div class="hidden content centered">
+                    <i class="arrow left icon"></i>
+                </div>
+            </a>
+        </div>
+        <div class="ui segments">
+            <div class="ui segment centered">
+                <h2 class="ui header">{{ revenuesource.name }}</h2>
+                <div class="ui large pointing label">
+                    {{ revenuesource.gfs_code }}
+                </div>
+            </div>
+            <div class="ui horizontal segments">
+                <div class="ui segment">
+                    <h4 class="ui header">Category</h4>
+                    <p>{{ revenuesource.category }}</p>
+                </div>
+                <div class="ui segment">
+                    <h4 class="ui header">Sub Category</h4>
+                    <p>{{ revenuesource.sub_category }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="ui clearing basic segment">
+            <a href="{% url 'billing:rs-update' revenuesource.pk %}" class="ui left floated primary button"
+                tabindex="0">
+                Update
+            </a>
+            <a href="{% url 'billing:rs-delete' revenuesource.pk %}" class="ui right floated negative button"
+                tabindex="0">
+                Delete
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock content %}

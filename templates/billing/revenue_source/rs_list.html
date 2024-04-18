@@ -1,0 +1,46 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Revenue Stream List {% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="sixteen wide column">
+        <div class="ui clearing basic segment">
+            <h1 class="ui left floated header">Revenue Stream List</h1>
+            <a href="{% url 'billing:rs-create' %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Add Revenue Stream</div>
+                <div class="hidden content centered">
+                    <i class="plus square outline large icon"></i>
+                </div>
+            </a>
+        </div>
+        <table class="ui basic striped table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Sub Category</th>
+                    <th>Category</th>
+                    <th>GFS Code</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rs in revenuesource_list %}
+                <tr>
+                    <td>{{ rs.name }}</td>
+                    <td>{{ rs.sub_category }}</td>
+                    <td>{{ rs.category }}</td>
+                    <td><div class="ui label">{{ rs.gfs_code }}</div></td>
+                    <td class="single line">
+                        <a href="{% url 'billing:rs-detail' rs.pk %}" class="ui icon large button primary"><i class="icon info"></i></a>
+                        <a href="{% url 'billing:rs-delete' rs.pk %}" class="ui icon large button negative"><i class="icon trash"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock content %}
