@@ -15,6 +15,7 @@ django-formset-js = "*"
 celery = "*"
 redis = "*"
 requests = "*"
+cryptography = "*"
 
 [dev-packages]
 

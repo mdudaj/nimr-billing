@@ -34,7 +34,7 @@ class Customer(TimeStampedModel, models.Model):
         verbose_name=_("Customer TIN"),
         help_text="Customer Tax Identification Number",
     )
-    cust_id = models.CharField(
+    id_num = models.CharField(
         max_length=50,
         verbose_name=_("Customer ID"),
         help_text="Customer Identification Reference",

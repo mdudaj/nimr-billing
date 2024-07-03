@@ -40,6 +40,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://127.0.0.1:8000",
     "http://127.0.0.1",
+    "https://10.0.10.53",
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -196,12 +197,26 @@ CELERY_TIMEZONE = "Africa/Dar_es_Salaam"
 #     }
 # }
 
-# GEPG Configuration
-# Headers
+# GEPG Configurations
+####################################################
+# GEPG API Headers
 GEPG_COM = os.environ.get("GEPG_COM")
 GEPG_CODE = os.environ.get("GEPG_CODE")
 GEPG_ALG = os.environ.get("GEPG_ALG")
 
-# URLS endpoints
-BILL_SUBMISSION_URL = os.environ.get("BILL_SUBMISSION_URL")
-RECONCILIATION_REQUEST_URL = os.environ.get("RECONCILIATION_REQUEST_URL")
+# GEPG SERVER URL
+GEPG_URL = os.environ.get("GEPG_URL")
+
+# GEPG API Endpoints
+BILL_SUBMISSION = os.environ.get("BILL_SUBMISSION")
+RECONCILIATION_REQUEST = os.environ.get("RECONCILIATION_REQUEST")
+
+# GEPG API Endpoints URL
+BILL_SUBMISSION_URL = f"{GEPG_URL}{BILL_SUBMISSION}"
+RECONCILIATION_REQUEST_URL = f"{GEPG_URL}{RECONCILIATION_REQUEST}"
+
+# GEPG Bill Parameters
+SP_GRP_CODE = os.environ.get("SP_GRP_CODE")
+SP_CODE = os.environ.get("SP_CODE")
+SUB_SP_CODE = os.environ.get("SUB_SP_CODE")
+SP_SYS_ID = os.environ.get("SP_SYS_ID")

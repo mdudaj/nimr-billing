@@ -16,6 +16,7 @@ from .utils import (
     parse_payment_response,
     parse_bill_reconciliation_request_acknowledgement,
     parse_bill_reconciliation_response,
+    load_private_key,
 )
 
 
@@ -44,8 +45,19 @@ def send_bill_control_number_request(self, req_id, bill_obj):
             "Gepg-Alg": settings.GEPG_ALG,
         }
 
+        # Load the private key for signing the request
+        private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+
         # Compose the bill control number request payload
-        payload = compose_bill_control_number_request_payload(req_id, bill_obj)
+        payload = compose_bill_control_number_request_payload(
+            req_id,
+            bill_obj,
+            settings.SP_GRP_CODE,
+            settings.SP_CODE,
+            settings.SUB_SP_CODE,
+            settings.SP_SYS_ID,
+            private_key,
+        )
 
         # Send the bill control number request to the GEPG API
         response = requests.post(url, headers=headers, data=payload)
@@ -154,7 +166,7 @@ def process_final_response(response_data):
 
 
 @shared_task
-def send_final_response_acknowledgment(ack_id, res_id, ack_sts_code):
+def send_final_response_acknowledgment(ack_id, res_id, ack_sts_code, private_key):
     # Send acknowledgment for the final response back to the Payment Gateway API
 
     try:
@@ -166,8 +178,13 @@ def send_final_response_acknowledgment(ack_id, res_id, ack_sts_code):
             "Content-Type": "application/xml",
         }
 
+        # Load the private key for signing the acknowledgment
+        private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+
         # Compose the acknowledgment response payload
-        payload = compose_acknowledgement_response_payload(ack_id, res_id, ack_sts_code)
+        payload = compose_acknowledgement_response_payload(
+            ack_id, res_id, ack_sts_code, private_key
+        )
 
         # Send the acknowledgment response to the GEPG API
         response = requests.post(url, headers=headers, data=payload)

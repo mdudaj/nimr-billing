@@ -1,7 +1,25 @@
+import base64
 import uuid
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import pkcs12
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
 from django.utils import timezone
+
+
+def load_private_key(pfx_file, password):
+    with open(pfx_file, "rb") as f:
+        pfx_data = f.read()
+    private_key, certificate, additional_certificates = (
+        pkcs12.load_key_and_certificates(pfx_data, password.encode())
+    )
+    return private_key
+
+
+def sign_payload(payload, private_key):
+    signature = private_key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
+    return base64.b64encode(signature).decode()
 
 
 def generate_request_id():
@@ -12,7 +30,9 @@ def generate_request_id():
     return str(uuid.uuid4())
 
 
-def compose_bill_control_number_request_payload(req_id, bill_obj):
+def compose_bill_control_number_request_payload(
+    req_id, bill_obj, sp_grp_code, sp_code, sub_sp_code, sp_sys_id, private_key
+):
     """
     Compose the XML payload for the bill control number request based on the provided Bill object.
     """
@@ -31,11 +51,11 @@ def compose_bill_control_number_request_payload(req_id, bill_obj):
     req_id_element.text = str(req_id)
 
     # Add other mandatory fields to BillHdr
-    sp_code_element = SubElement(bill_hdr_element, "SpCode")
-    sp_code_element.text = "YourServiceProviderCode"
+    sp_code_element = SubElement(bill_hdr_element, "SpGrpCode")
+    sp_code_element.text = str(sp_grp_code)
 
     sys_code_element = SubElement(bill_hdr_element, "SysCode")
-    sys_code_element.text = "SYS001"  # Example system code
+    sys_code_element.text = str(sp_sys_id)
 
     bill_typ_element = SubElement(bill_hdr_element, "BillTyp")
     bill_typ_element.text = str(bill_obj.type)
@@ -52,18 +72,81 @@ def compose_bill_control_number_request_payload(req_id, bill_obj):
     # Create the BillDtl element
     bill_dtl_element = SubElement(bill_dtls_element, "BillDtl")
 
-    # Add mandatory fields to BillDtl
+    # Add fields to BillDtl
     bill_id_element = SubElement(bill_dtl_element, "BillId")
     bill_id_element.text = str(bill_obj.bill_id)
 
-    sub_sp_code_element = SubElement(bill_dtl_element, "SubSpCode")
-    sub_sp_code_element.text = "YourSubServiceProviderCode"
+    sp_code_element = SubElement(bill_dtl_element, "SpCode")
+    sp_code_element.text = str(sp_code)
+
+    coll_cent_code_element = SubElement(bill_dtl_element, "CollCentCode")
+    coll_cent_code_element.text = "YourCollectionCenterCode"
+
+    bill_desc_element = SubElement(bill_dtl_element, "BillDesc")
+    bill_desc_element.text = str(bill_obj.description)
+
+    cust_tin_element = SubElement(bill_dtl_element, "CustTin")
+    cust_tin_element.text = str(bill_obj.customer.tin)
+
+    cust_id_element = SubElement(bill_dtl_element, "CustId")
+    cust_id_element.text = str(bill_obj.customer.id_num)
+
+    cust_id_type_element = SubElement(bill_dtl_element, "CustIdType")
+    cust_id_type_element.text = str(bill_obj.customer.id_type)
+
+    cust_accnt_element = SubElement(bill_dtl_element, "CustAccnt")
+    cust_accnt_element.text = str(bill_obj.customer.account_num)
+
+    cust_name_element = SubElement(bill_dtl_element, "CustName")
+    cust_name_element.text = str(bill_obj.customer.get_name)
+
+    cust_cell_num_element = SubElement(bill_dtl_element, "CustCellNum")
+    cust_cell_num_element.text = str(bill_obj.customer.cell_num)
+
+    cust_email_element = SubElement(bill_dtl_element, "CustEmail")
+    cust_email_element.text = str(bill_obj.customer.email)
+
+    bill_gen_dt_element = SubElement(bill_dtl_element, "BillGenDt")
+    bill_gen_dt_element.text = str(bill_obj.gen_date.strftime("%Y-%m-%dT%H:%M:%S"))
+
+    bill_expr_dt_element = SubElement(bill_dtl_element, "BillExprDt")
+    bill_expr_dt_element.text = str(bill_obj.expr_date.strftime("%Y-%m-%dT%H:%M:%S"))
+
+    bill_gen_by_element = SubElement(bill_dtl_element, "BillGenBy")
+    bill_gen_by_element.text = "YourBillGenerator"
+
+    bill_appr_by_element = SubElement(bill_dtl_element, "BillApprBy")
+    bill_appr_by_element.text = "YourBillApprover"
 
     bill_amt_element = SubElement(bill_dtl_element, "BillAmt")
     bill_amt_element.text = str(bill_obj.amt)
 
-    # Add other optional fields to BillDtl
-    # For brevity, add other fields as needed
+    bill_eqv_amt_element = SubElement(bill_dtl_element, "BillEqvAmt")
+    bill_eqv_amt_element.text = str(bill_obj.eqv_amt)
+
+    min_pay_amt_element = SubElement(bill_dtl_element, "MinPayAmt")
+    min_pay_amt_element.text = str(bill_obj.min_pay_amt)
+
+    ccy_element = SubElement(bill_dtl_element, "Ccy")
+    ccy_element.text = "TZS"
+
+    exch_rate_element = SubElement(bill_dtl_element, "ExchRate")
+    exch_rate_element.text = "1.00"
+
+    bill_pay_opt_element = SubElement(bill_dtl_element, "BillPayOpt")
+    bill_pay_opt_element.text = "1"
+
+    bill_pay_plan_element = SubElement(bill_dtl_element, "BillPayPlan")
+    bill_pay_plan_element.text = "1"
+
+    bill_pay_lim_typ_element = SubElement(bill_dtl_element, "BillPayLimTyp")
+    bill_pay_lim_typ_element.text = "1"
+
+    bill_pay_lim_amt_element = SubElement(bill_dtl_element, "BillPayLimAmt")
+    bill_pay_lim_amt_element.text = "0.00"
+
+    coll_psp_element = SubElement(bill_dtl_element, "CollPsp")
+    coll_psp_element.text = ""
 
     # Create the BillItems element
     bill_items_element = SubElement(bill_dtl_element, "BillItems")
@@ -77,16 +160,18 @@ def compose_bill_control_number_request_payload(req_id, bill_obj):
         ref_bill_id_element.text = str(item.bill.bill_id)
 
         sub_sp_code_element = SubElement(bill_item_element, "SubSpCode")
-        sub_sp_code_element.text = "YourSubServiceProviderCode"
+        sub_sp_code_element.text = str(sub_sp_code)
 
         gfs_code_element = SubElement(bill_item_element, "GfsCode")
-        gfs_code_element.text = "YourGfsCode"
+        gfs_code_element.text = str(item.rev_src.gfs_code)
 
         bill_item_ref_element = SubElement(bill_item_element, "BillItemRef")
         bill_item_ref_element.text = "YourBillItemRef"
 
         use_item_ref_on_pay_element = SubElement(bill_item_element, "UseItemRefOnPay")
-        use_item_ref_on_pay_element.text = "N"
+        use_item_ref_on_pay_element.text = (
+            str(item.ref_on_pay) if item.ref_on_pay else "N"
+        )
 
         bill_item_amt_element = SubElement(bill_item_element, "BillItemAmt")
         bill_item_amt_element.text = str(item.amt)
@@ -95,17 +180,23 @@ def compose_bill_control_number_request_payload(req_id, bill_obj):
         bill_item_eqv_amt_element.text = str(item.eqv_amt)
 
         coll_sp_element = SubElement(bill_item_element, "CollSp")
-        coll_sp_element.text = "YourCollectionServiceProviderCode"
+        coll_sp_element.text = str(sp_code)
 
-        # Add signature element
-        signature_element = SubElement(gepg_element, "signature")
-        signature_element.text = "SignatureGoesHere"
+    # Convert the XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8")
 
-    # Return the XML payload as a string
+    # Sign the payload
+    signature = sign_payload(payload_str, private_key)
+
+    # Add signature element
+    signature_element = SubElement(gepg_element, "signature")
+    signature_element.text = signature
+
+    # Return the final XML payload as a string
     return tostring(gepg_element, encoding="utf-8")
 
 
-def compose_acknowledgement_response_payload(ack_id, res_id, ack_sts_code):
+def compose_acknowledgement_response_payload(ack_id, res_id, ack_sts_code, private_key):
     """
     Compose the XML payload for the acknowledgement response based on the provided parameters.
     """
@@ -128,15 +219,23 @@ def compose_acknowledgement_response_payload(ack_id, res_id, ack_sts_code):
     ack_sts_code_element = SubElement(bill_sub_res_ack_element, "AckStsCode")
     ack_sts_code_element.text = str(ack_sts_code)
 
+    # Convert the XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8")
+
+    # Sign the payload
+    signature = sign_payload(payload_str, private_key)
+
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
-    signature_element.text = "SignatureGoesHere"
+    signature_element.text = signature
 
     # Return the XML payload as a string
     return tostring(gepg_element, encoding="utf-8")
 
 
-def compose_payment_response_acknowledgement_payload(ack_id, req_id, ack_sts_code):
+def compose_payment_response_acknowledgement_payload(
+    ack_id, req_id, ack_sts_code, private_key
+):
     """
     Compose the XML payload for the payment response acknowledgement based on the provided parameters.
     """
@@ -158,9 +257,15 @@ def compose_payment_response_acknowledgement_payload(ack_id, req_id, ack_sts_cod
     ack_sts_code_element = SubElement(pmt_sp_ntf_req_ack_element, "AckStsCode")
     ack_sts_code_element.text = str(ack_sts_code)
 
+    # Convert the XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8")
+
+    # Sign the payload
+    signature = sign_payload(payload_str, private_key)
+
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
-    signature_element.text = "SignatureGoesHere"
+    signature_element.text = signature
 
     # Return the XML payload as a string
     return tostring(gepg_element, encoding="utf-8")
