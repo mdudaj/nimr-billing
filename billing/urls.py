@@ -25,12 +25,22 @@ from .views import (
     BillControlNumberResponseCallbackView,
     BillControlNumberPaymentCallbackView,
     BillControlNumberReconciliationCallbackView,
+    SystemInfoListView,
+    SystemInfoDetailView,
+    SystemInfoCreateView,
+    SystemInfoUpdateView,
+    SystemInfoDeleteView,
 )
 
 app_name = "billing"
 
 urlpatterns = [
     path("", BillingIndexView.as_view(), name="billing-index"),
+    path("system-info/", SystemInfoListView.as_view(), name="system-info-list"),
+    path("system-info/<int:pk>/", SystemInfoDetailView.as_view(), name="system-info-detail"),
+    path("system-info/create/", SystemInfoCreateView.as_view(), name="system-info-create"),
+    path("system-info/<int:pk>/update/", SystemInfoUpdateView.as_view(), name="system-info-update"),
+    path("system-info/<int:pk>/delete/", SystemInfoDeleteView.as_view(), name="system-info-delete"),
     path("customer/", CustomerListView.as_view(), name="customer-list"),
     path("customer/<int:pk>/", CustomerDetailView.as_view(), name="customer-detail"),
     path("customer/create/", CustomerCreateView.as_view(), name="customer-create"),

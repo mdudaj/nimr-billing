@@ -1,0 +1,17 @@
+{% load static formset_tags %}
+
+<div class="ui segments" id="revenue_source_items" data-formset-prefix="{{ revenue_source_items.prefix }}">
+    {{ revenue_source_items.management_form }}
+    <div class="ui basic clearing segment">
+        <h4 class="ui left floated header">Revenue Source Items</h4>
+    </div>
+    <div class="ui segment" data-formset-body>
+        {% for form in revenue_source_items %}
+        {% include 'semantic-ui/includes/inline_form.html' with form=form %}
+        {% endfor %}
+        {% include 'semantic-ui/includes/inline_empty_form.html' with form=revenue_source_items.empty_form %}
+    </div>
+    <div class="ui clearing basic segment">
+        <button class="ui left floated primary button" data-formset-add>Add Revenue Source Item</button>
+    </div>
+</div>

@@ -1,0 +1,392 @@
+[
+{
+    "model": "billing.customer",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-25T07:20:44.325Z",
+        "updated_at": "2024-07-25T07:20:44.325Z",
+        "first_name": "John",
+        "middle_name": "Alphonce",
+        "last_name": "Mduda",
+        "tin": "000000000",
+        "id_num": "19000715-00001-00001-01",
+        "id_type": "1",
+        "account_num": "000000000000",
+        "cell_num": "255763452389",
+        "email": "john.mduda@nimr.or.tz"
+    }
+},
+{
+    "model": "billing.serviceprovider",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-25T06:53:20.480Z",
+        "updated_at": "2024-07-25T06:53:20.503Z",
+        "name": "National Institute for Medical Research",
+        "code": "SP19917",
+        "grp_code": "SP19917",
+        "sys_code": "TNIMR002"
+    }
+},
+{
+    "model": "billing.billingdepartment",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-25T06:53:20.496Z",
+        "updated_at": "2024-07-25T06:53:20.496Z",
+        "service_provider": 1,
+        "name": "NIMR HQ",
+        "description": "National Institute for Medical Research, Headquarters",
+        "code": "CC1003029398740",
+        "account_num": "040201056175"
+    }
+},
+{
+    "model": "billing.revenuesource",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.308Z",
+        "updated_at": "2024-07-25T06:33:07.796Z",
+        "name": "Ethical clearance fee",
+        "gfs_code": "140101",
+        "category": "Intellectual Property Products",
+        "sub_category": "Research and Development"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Expedited Review) for Tanzanian Collaborators",
+        "amt": "1100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 2,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Expedited Review) for International Collaborators",
+        "amt": "1100.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 3,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Ordinary Review) for Tanzanian Collaborators",
+        "amt": "400000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 4,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Ordinary Review) for International Collaborators",
+        "amt": "600.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 5,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Ordinary Review) for Tanzanian Students",
+        "amt": "250000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 6,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Ordinary Review) for International Students",
+        "amt": "350.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 7,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Amendment Review) for Tanzanian Collaborators",
+        "amt": "200000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 8,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Amendment Review) for International Collaborators",
+        "amt": "300.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 9,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Amendment Review) for Tanzanian Students",
+        "amt": "100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 10,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Amendment Review) For International Students",
+        "amt": "150.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 11,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Extension Review) for Tanzanian Collaborators",
+        "amt": "100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 12,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Extension Review) for International Collaborators",
+        "amt": "100.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 13,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Extension Review) for Tanzanian Students",
+        "amt": "100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 14,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Extension Review) for International Students",
+        "amt": "100.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 15,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Expedited Review) for Tanzanian Collaborators",
+        "amt": "3100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 16,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Expedited Review) for International Collaborators",
+        "amt": "4100.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 17,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Ordinary Review) for Tanzanian Collaborators",
+        "amt": "2100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 18,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Ordinary Review) for International Collaborators",
+        "amt": "2100.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 19,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Ordinary Review) for Tanzanian Students",
+        "amt": "1100000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 20,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Ordinary Review) for International Students",
+        "amt": "750.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 21,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Amendment Review) for Tanzanian Collaborators",
+        "amt": "500000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 22,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Amendment Review) for International Collaborators",
+        "amt": "500.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 23,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Amendment Review) for Tanzanian Students",
+        "amt": "250000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 24,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Amendment Review) For International Students",
+        "amt": "250.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 25,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Extension Review) for Tanzanian Collaborators",
+        "amt": "200000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 26,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Extension Review) for International Collaborators",
+        "amt": "200.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 27,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Extension Review) for Tanzanian Students",
+        "amt": "200000.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 28,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Clinical Trial Proposal (Extension Review) for International Students",
+        "amt": "200.00",
+        "currency": "USD"
+    }
+}
+]

@@ -1,11 +1,16 @@
 import base64
+import logging
 import uuid
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import pkcs12
+from datetime import datetime
+from django.utils import timezone
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
-from django.utils import timezone
+
+
+logger = logging.getLogger(__name__)
 
 
 def load_private_key(pfx_file, password):
@@ -18,6 +23,11 @@ def load_private_key(pfx_file, password):
 
 
 def sign_payload(payload, private_key):
+    # Ensure the payload is a byte string
+    if isinstance(payload, str):
+        payload = payload.encode("utf-8")
+
+    # Sign the payload with the private key using PKCS1v15 padding and SHA-256 hashing algorithm
     signature = private_key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
     return base64.b64encode(signature).decode()
 
@@ -28,6 +38,39 @@ def generate_request_id():
     """
 
     return str(uuid.uuid4())
+
+
+def xml_to_dict(xml_str):
+    """
+    Convert an XML string to a dictionary.
+    """
+    root = ET.fromstring(xml_str)
+    return {root.tag: _element_to_dict(root)}
+
+
+def _element_to_dict(element):
+    """
+    Convert an XML element to a dictionary.
+    """
+    dict_ = {}
+    # Include the element's attributes
+    dict_.update(element.attrib)
+
+    # Include the element's text content if it's not empty
+    if element.text and element.text.strip():
+        dict_["text"] = element.text.strip()
+
+    # Process child elements
+    for child in element:
+        child_dict = _element_to_dict(child)
+        if child.tag in dict_:
+            if not isinstance(dict_[child.tag], list):
+                dict_[child.tag] = [dict_[child.tag]]
+            dict_[child.tag].append(child_dict)
+        else:
+            dict_[child.tag] = child_dict
+
+    return dict_
 
 
 def compose_bill_control_number_request_payload(
@@ -80,7 +123,7 @@ def compose_bill_control_number_request_payload(
     sp_code_element.text = str(sp_code)
 
     coll_cent_code_element = SubElement(bill_dtl_element, "CollCentCode")
-    coll_cent_code_element.text = "YourCollectionCenterCode"
+    coll_cent_code_element.text = str(bill_obj.dept.code)
 
     bill_desc_element = SubElement(bill_dtl_element, "BillDesc")
     bill_desc_element.text = str(bill_obj.description)
@@ -91,14 +134,14 @@ def compose_bill_control_number_request_payload(
     cust_id_element = SubElement(bill_dtl_element, "CustId")
     cust_id_element.text = str(bill_obj.customer.id_num)
 
-    cust_id_type_element = SubElement(bill_dtl_element, "CustIdType")
+    cust_id_type_element = SubElement(bill_dtl_element, "CustIdTyp")
     cust_id_type_element.text = str(bill_obj.customer.id_type)
 
     cust_accnt_element = SubElement(bill_dtl_element, "CustAccnt")
     cust_accnt_element.text = str(bill_obj.customer.account_num)
 
     cust_name_element = SubElement(bill_dtl_element, "CustName")
-    cust_name_element.text = str(bill_obj.customer.get_name)
+    cust_name_element.text = str(bill_obj.customer.get_name())
 
     cust_cell_num_element = SubElement(bill_dtl_element, "CustCellNum")
     cust_cell_num_element.text = str(bill_obj.customer.cell_num)
@@ -113,10 +156,10 @@ def compose_bill_control_number_request_payload(
     bill_expr_dt_element.text = str(bill_obj.expr_date.strftime("%Y-%m-%dT%H:%M:%S"))
 
     bill_gen_by_element = SubElement(bill_dtl_element, "BillGenBy")
-    bill_gen_by_element.text = "YourBillGenerator"
+    bill_gen_by_element.text = str(bill_obj.gen_by)
 
     bill_appr_by_element = SubElement(bill_dtl_element, "BillApprBy")
-    bill_appr_by_element.text = "YourBillApprover"
+    bill_appr_by_element.text = str(bill_obj.appr_by)
 
     bill_amt_element = SubElement(bill_dtl_element, "BillAmt")
     bill_amt_element.text = str(bill_obj.amt)
@@ -125,10 +168,10 @@ def compose_bill_control_number_request_payload(
     bill_eqv_amt_element.text = str(bill_obj.eqv_amt)
 
     min_pay_amt_element = SubElement(bill_dtl_element, "MinPayAmt")
-    min_pay_amt_element.text = str(bill_obj.min_pay_amt)
+    min_pay_amt_element.text = str(bill_obj.min_amt)
 
     ccy_element = SubElement(bill_dtl_element, "Ccy")
-    ccy_element.text = "TZS"
+    ccy_element.text = str(bill_obj.currency)
 
     exch_rate_element = SubElement(bill_dtl_element, "ExchRate")
     exch_rate_element.text = "1.00"
@@ -136,13 +179,13 @@ def compose_bill_control_number_request_payload(
     bill_pay_opt_element = SubElement(bill_dtl_element, "BillPayOpt")
     bill_pay_opt_element.text = "1"
 
-    bill_pay_plan_element = SubElement(bill_dtl_element, "BillPayPlan")
+    bill_pay_plan_element = SubElement(bill_dtl_element, "PayPlan")
     bill_pay_plan_element.text = "1"
 
-    bill_pay_lim_typ_element = SubElement(bill_dtl_element, "BillPayLimTyp")
+    bill_pay_lim_typ_element = SubElement(bill_dtl_element, "PayLimTyp")
     bill_pay_lim_typ_element.text = "1"
 
-    bill_pay_lim_amt_element = SubElement(bill_dtl_element, "BillPayLimAmt")
+    bill_pay_lim_amt_element = SubElement(bill_dtl_element, "PayLimAmt")
     bill_pay_lim_amt_element.text = "0.00"
 
     coll_psp_element = SubElement(bill_dtl_element, "CollPsp")
@@ -163,10 +206,10 @@ def compose_bill_control_number_request_payload(
         sub_sp_code_element.text = str(sub_sp_code)
 
         gfs_code_element = SubElement(bill_item_element, "GfsCode")
-        gfs_code_element.text = str(item.rev_src.gfs_code)
+        gfs_code_element.text = str(item.rev_src_itm.rev_src.gfs_code)
 
         bill_item_ref_element = SubElement(bill_item_element, "BillItemRef")
-        bill_item_ref_element.text = "YourBillItemRef"
+        bill_item_ref_element.text = str(item.rev_src_itm.rev_src.name)
 
         use_item_ref_on_pay_element = SubElement(bill_item_element, "UseItemRefOnPay")
         use_item_ref_on_pay_element.text = (
@@ -183,17 +226,22 @@ def compose_bill_control_number_request_payload(
         coll_sp_element.text = str(sp_code)
 
     # Convert the XML to a string
-    payload_str = tostring(gepg_element, encoding="utf-8")
+    bill_sub_req_str = tostring(
+        bill_sub_req_element, encoding="utf-8", method="xml"
+    ).decode("utf-8")
 
     # Sign the payload
-    signature = sign_payload(payload_str, private_key)
+    signature = sign_payload(bill_sub_req_str, private_key)
 
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
     signature_element.text = signature
 
-    # Return the final XML payload as a string
-    return tostring(gepg_element, encoding="utf-8")
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+
+    # Return the XML payload as a string
+    return payload_str
 
 
 def compose_acknowledgement_response_payload(ack_id, res_id, ack_sts_code, private_key):
@@ -220,17 +268,22 @@ def compose_acknowledgement_response_payload(ack_id, res_id, ack_sts_code, priva
     ack_sts_code_element.text = str(ack_sts_code)
 
     # Convert the XML to a string
-    payload_str = tostring(gepg_element, encoding="utf-8")
+    bill_sub_res_ack_str = tostring(
+        bill_sub_res_ack_element, encoding="utf-8", method="xml"
+    ).decode("utf-8")
 
     # Sign the payload
-    signature = sign_payload(payload_str, private_key)
+    signature = sign_payload(bill_sub_res_ack_str, private_key)
 
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
     signature_element.text = signature
 
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8")
+    return payload_str
 
 
 def compose_payment_response_acknowledgement_payload(
@@ -268,7 +321,7 @@ def compose_payment_response_acknowledgement_payload(
     signature_element.text = signature
 
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8")
+    return tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
 
 
 def compose_bill_reconciliation_request_payload(req_id, sp_grp_code, sys_code, trxDt):
@@ -298,7 +351,7 @@ def compose_bill_reconciliation_request_payload(req_id, sp_grp_code, sys_code, t
     signature_element.text = "SignatureGoesHere"
 
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8")
+    return tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
 
 
 def compose_bill_reconciliation_response_acknowledgement_payload(
@@ -325,12 +378,12 @@ def compose_bill_reconciliation_response_acknowledgement_payload(
     signature_element.text = "SignatureGoesHere"
 
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8")
+    return tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
 
 
-def parse_acknowledgement_response(response_data):
+def parse_bill_control_number_request_acknowledgement(response_data):
     """
-    Parse the initial acknowledgement response received from the Payment Gateway API.
+    Parse the bill controll number request acknowledgement received from the GEPG API.
     """
 
     try:
@@ -343,16 +396,16 @@ def parse_acknowledgement_response(response_data):
         ack_sts_code = root.findtext("billSubReqAck/AckStsCode")
         ack_sts_desc = root.findtext("billSubReqAck/AckStsDesc")
 
-        return req_id, ack_sts_code, ack_sts_desc
+        return ack_id, req_id, ack_sts_code, ack_sts_desc
 
     except Exception as e:
         # If parsing fails, raise an exception
         raise Exception("Error parsing acknowledgement response: {}".format(str(e)))
 
 
-def parse_final_response(response_data):
+def parse_bill_control_number_response(response_data):
     """
-    Parse the final response received from the Payment Gateway API.
+    Parse the bill control number response received from the Payment Gateway API.
     """
 
     try:
@@ -366,8 +419,19 @@ def parse_final_response(response_data):
         cust_cntr_num = root.find(".//CustCntrNum").text
         res_sts_code = root.find(".//ResStsCode").text
         res_sts_desc = root.find(".//ResStsDesc").text
+        bill_sts_code = root.find(".//BillStsCode").text
+        bill_sts_desc = root.find(".//BillStsDesc").text
 
-        return res_id, req_id, bill_id, cust_cntr_num, res_sts_code, res_sts_desc
+        return (
+            res_id,
+            req_id,
+            bill_id,
+            cust_cntr_num,
+            res_sts_code,
+            res_sts_desc,
+            bill_sts_code,
+            bill_sts_desc,
+        )
 
     except Exception as e:
         # If parsing fails, raise an exception
@@ -383,24 +447,36 @@ def parse_payment_response(response_data):
         # parse the XML response data
         root = ET.fromstring(response_data)
 
+        # Helper function to get text or log if element is missing
+        def get_text_or_log(element_name, xpath):
+            element = root.find(xpath)
+            if element is None:
+                logger.error(f"Missing element: {element_name}")
+                return ""
+            return element.text if element.text is not None else ""
+
         # Extract relevant information from the response
-        req_id = root.find(".//ReqId").text
-        bill_id = root.find(".//GrpBillId").text
-        cntr_num = root.find(".//CustCntrNum").text
-        psp_code = root.find(".//PspCode").text
-        psp_name = root.find(".//PspName").text
-        trx_id = root.find(".//TrxId").text
-        payref_id = root.find(".//PayRefId").text
-        bill_amt = root.find(".//BillAmt").text
-        paid_amt = root.find(".//PaidAmt").text
-        paid_ccy = root.find(".//Ccy").text
-        coll_acc_num = root.find(".//CollAccNum").text
-        trx_date = root.find(".//TrxDtTm").text
-        pay_channel = root.find(".//UsdPayChnl").text
-        trdpty_trx_id = root.find(".//TrdPtyTrxId").text
-        pyr_cell_num = root.find(".//PyrCellNum").text
-        pyr_email = root.find(".//PyrEmail").text
-        pyr_name = root.find(".//PyrName").text
+        req_id = get_text_or_log("ReqId", ".//ReqId")
+        bill_id = get_text_or_log("GrpBillId", ".//GrpBillId")
+        cntr_num = get_text_or_log("CustCntrNum", ".//CustCntrNum")
+        psp_code = get_text_or_log("PspCode", ".//PspCode")
+        psp_name = get_text_or_log("PspName", ".//PspName")
+        trx_id = get_text_or_log("TrxId", ".//TrxId")
+        payref_id = get_text_or_log("PayRefId", ".//PayRefId")
+        bill_amt = get_text_or_log("BillAmt", ".//BillAmt")
+        paid_amt = get_text_or_log("PaidAmt", ".//PaidAmt")
+        paid_ccy = get_text_or_log("Ccy", ".//Ccy")
+        coll_acc_num = get_text_or_log("CollAccNum", ".//CollAccNum")
+        trx_date = get_text_or_log("TrxDtTm", ".//TrxDtTm")
+        pay_channel = get_text_or_log("UsdPayChnl", ".//UsdPayChnl")
+        trdpty_trx_id = get_text_or_log("TrdPtyTrxId", ".//TrdPtyTrxId")
+        pyr_cell_num = get_text_or_log("PyrCellNum", ".//PyrCellNum")
+        pyr_email = get_text_or_log("PyrEmail", ".//PyrEmail")
+        pyr_name = get_text_or_log("PyrName", ".//PyrName")
+
+        # Convert trx_date to a timezone-aware datetime
+        if trx_date:
+            trx_date = timezone.make_aware(datetime.fromisoformat(trx_date))
 
         return (
             req_id,

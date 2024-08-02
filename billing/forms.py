@@ -4,9 +4,17 @@ from .models import (
     ServiceProvider,
     BillingDepartment,
     RevenueSource,
+    RevenueSourceItem,
     Bill,
     BillItem,
+    SystemInfo,
 )
+
+
+class SystemInfoForm(forms.ModelForm):
+    class Meta:
+        model = SystemInfo
+        fields = "__all__"
 
 
 class CustomerForm(forms.ModelForm):
@@ -54,10 +62,38 @@ class RevenueSourceForm(forms.ModelForm):
         fields = "__all__"
 
 
+class RevenueSourceItemForm(forms.ModelForm):
+    class Meta:
+        model = RevenueSourceItem
+        fields = "__all__"
+
+
+class BaseRevenueSourceItemInlineFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super(BaseRevenueSourceItemInlineFormSet, self).clean()
+        item_count = 0
+        for form in self.forms:
+            if not form.cleaned_data.get("DELETE"):
+                item_count += 1
+
+        if item_count < 1:
+            raise forms.ValidationError("At least one revenue source item is required.")
+
+
+RevenueSourceItemInlineFormSet = forms.inlineformset_factory(
+    RevenueSource,
+    RevenueSourceItem,
+    form=RevenueSourceItemForm,
+    formset=BaseRevenueSourceItemInlineFormSet,
+    extra=1,
+)
+
+
 class BillForm(forms.ModelForm):
     class Meta:
         model = Bill
         exclude = (
+            "sys_info",
             "bill_id",
             "grp_bill_id",
             "expr_date",
@@ -72,7 +108,7 @@ class BillForm(forms.ModelForm):
 class BillItemForm(forms.ModelForm):
     class Meta:
         model = BillItem
-        exclude = ("eqv_amt", "misc_amt")
+        exclude = ("description", "amt", "eqv_amt", "misc_amt")
 
 
 class BaseBillItemInlineFormSet(forms.BaseInlineFormSet):

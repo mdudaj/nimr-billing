@@ -16,6 +16,15 @@ celery = "*"
 redis = "*"
 requests = "*"
 cryptography = "*"
+django-redis = "*"
+djangorestframework = "*"
+markdown = "*"
+ipython = "*"
+django-filter = "*"
+django-guardian = "*"
+pyyaml = "*"
+uritemplate = "*"
+pygments = "*"
 
 [dev-packages]
 

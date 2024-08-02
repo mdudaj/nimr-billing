@@ -6,29 +6,29 @@
 {% block content %}
 <div class="sixteen wide column">
     <div class="ui clearing basic segment">
-        <h1 class="ui left floated header">{% if is_update %}Update Customer{% else %}Create Customer{% endif %}</h1>
+        <h1 class="ui left floated header">{% if is_update %}Update Customer{% else %}Add Customer{% endif %}</h1>
     </div>
-    <form class="ui form" method="post" 
+    <form class="ui form" method="post"
         action="{% if is_update %}{% url 'billing:customer-update' customer.pk %}{% else %}{% url 'billing:customer-create' %}{% endif %}">
         {% csrf_token %}
         {% for field in form %}
-            <div class="field">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                <!-- Field errors -->
-                {% if field.errors %}
-                    <div class="ui error message">
-                        <ul class="ui list">
-                            {% for error in field.errors %}
-                                <li class="item">{{ error }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endif %}
-                <!-- End field errors -->
+        <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            <!-- Field errors -->
+            {% if field.errors %}
+            <div class="ui error message">
+                <ul class="ui list">
+                    {% for error in field.errors %}
+                    <li class="item">{{ error }}</li>
+                    {% endfor %}
+                </ul>
             </div>
+            {% endif %}
+            <!-- End field errors -->
+        </div>
         {% endfor %}
-        <button class="ui button" type="submit">Submit</button>
+        <button class="ui submit button" type="submit">Submit</button>
     </form>
 </div>
 {% endblock content %}

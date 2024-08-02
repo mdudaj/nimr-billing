@@ -41,6 +41,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://127.0.0.1",
     "https://10.0.10.53",
+    "https://41.221.58.50",
 ]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
@@ -60,11 +61,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third party apps
+    "rest_framework",
     "jquery",
     "djangoformsetjs",
     # Local apps
+    "accounts",
     "home",
     "billing",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -72,7 +76,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -130,6 +134,9 @@ else:
         }
     }
 
+# Auth User Model
+AUTH_USER_MODEL = "accounts.User"
+
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
@@ -161,11 +168,19 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Login URL and Redirect URL
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
 
 # if not DEBUG:
 #    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -187,15 +202,47 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Africa/Dar_es_Salaam"
 
 # # Redis Configuration
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django_redis.cache.RedisCache",
-#         "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
-#         "OPTIONS": {
-#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-#         },
-#     }
-# }
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+# Logging Configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "celery_tasks.log"),
+        },
+        "redis": {
+            "level": "DEBUG",
+            "class": "core.redis_logging.RedisHandler",
+            "host": "redis",
+            "port": 6379,
+            "key": "django-logs",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["file", "redis"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "celery": {
+            "handlers": ["file", "redis"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}
 
 # GEPG Configurations
 ####################################################
@@ -220,3 +267,15 @@ SP_GRP_CODE = os.environ.get("SP_GRP_CODE")
 SP_CODE = os.environ.get("SP_CODE")
 SUB_SP_CODE = os.environ.get("SUB_SP_CODE")
 SP_SYS_ID = os.environ.get("SP_SYS_ID")
+
+# Email Configuration
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST")
+EMAIL_PORT = os.environ.get("EMAIL_PORT")
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS")
+
+# Support Email
+SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL")
+DEVELOPER_EMAIL = os.environ.get("DEVELOPER_EMAIL")

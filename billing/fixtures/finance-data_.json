@@ -1,0 +1,104 @@
+[
+{
+    "model": "billing.customer",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-25T07:20:44.325Z",
+        "updated_at": "2024-07-25T07:20:44.325Z",
+        "first_name": "John",
+        "middle_name": "Alphonce",
+        "last_name": "Mduda",
+        "tin": "000000000",
+        "id_num": "19000715-00001-00001-01",
+        "id_type": "1",
+        "account_num": "000000000000",
+        "cell_num": "255763452389",
+        "email": "john.mduda@nimr.or.tz"
+    }
+},
+{
+    "model": "billing.serviceprovider",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-25T06:53:20.480Z",
+        "updated_at": "2024-07-25T06:53:20.503Z",
+        "name": "National Institute for Medical Research",
+        "code": "SP19917",
+        "grp_code": "SP19917",
+        "sys_code": "TNIMR002"
+    }
+},
+{
+    "model": "billing.billingdepartment",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-25T06:53:20.496Z",
+        "updated_at": "2024-07-25T06:53:20.496Z",
+        "service_provider": 1,
+        "name": "NIMR HQ",
+        "description": "National Institute for Medical Research, Headquarters",
+        "code": "CC1003029398740",
+        "account_num": "040201056175"
+    }
+},
+{
+    "model": "billing.revenuesource",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.308Z",
+        "updated_at": "2024-07-25T06:33:07.796Z",
+        "name": "Ethical clearance fee",
+        "gfs_code": "140101",
+        "category": "Intellectual Property Products",
+        "sub_category": "Research and Development"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 1,
+    "fields": {
+        "created_at": "2024-07-24T12:46:07.318Z",
+        "updated_at": "2024-07-25T06:28:56.461Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Expedited Review) For Tanzanian Collaborators",
+        "amt": "110.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 2,
+    "fields": {
+        "created_at": "2024-07-24T12:47:49.320Z",
+        "updated_at": "2024-07-25T06:28:56.464Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Expedited Review) For International Collaborators",
+        "amt": "110.00",
+        "currency": "USD"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 3,
+    "fields": {
+        "created_at": "2024-07-25T06:28:56.467Z",
+        "updated_at": "2024-07-25T06:28:56.467Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Ordinary Review) For Tanzanian Colaborators",
+        "amt": "40.00",
+        "currency": "TZS"
+    }
+},
+{
+    "model": "billing.revenuesourceitem",
+    "pk": 4,
+    "fields": {
+        "created_at": "2024-07-25T06:29:55.933Z",
+        "updated_at": "2024-07-25T06:29:55.933Z",
+        "rev_src": 1,
+        "description": "Ordinary Proposal (Ordinary Review) For International Colaborators",
+        "amt": "60.00",
+        "currency": "USD"
+    }
+}
+]

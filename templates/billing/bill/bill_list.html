@@ -31,10 +31,10 @@
             {% for bill in bill_list %}
             <tr>
                 <td>{{ bill.bill_id }}</td>
-                <td>{{ bill.customer.get_name }}</td>
                 <td>{{ bill.gen_date }}</td>
+                <td>{{ bill.customer.get_name }}</td>
                 <td>{{ bill.description }}</td>
-                <td>{{ bill.amt }}</td>
+                <td><small>{{ bill.currency }}</small> {{ bill.amt }}</td>
                 {% if bill.cntr_num %}
                 <td>{{ bill.cntr_num }}</td>
                 {% else %}

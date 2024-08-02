@@ -1,0 +1,59 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} System Info Form {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">{% if is_update %}Update System Info{% else %}Add System Info{% endif %}</h1>
+    </div>
+    <form class="ui form" method="post"
+        action="{% if is_update %}{% url 'billing:system-info-update' system_info.pk %}{% else %}{% url 'billing:system-info-create' %}{% endif %}">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% if field.field.widget.input_type == 'checkbox' %}
+            <div class="ui segment">
+                <div class="field">
+                    <div class="ui toggle checkbox">
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    </div>
+                    <!-- Field errors -->
+                    {% if field.errors %}
+                    <div class="ui error message">
+                    <ul class="ui list">
+                        {% for error in field.errors %}
+                        <li class="item">{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                    </div>
+                    {% endif %}
+                    <!-- End field errors -->
+                </div>
+            </div>
+            {% else %}
+            <div class="field">
+                <!-- <label for="{{ field.id_for_label }}">{{ field.label }}</label> -->
+                {{ field }}
+                <!-- Field errors -->
+                {% if field.errors %}
+                <div class="ui error message">
+                    <ul class="ui list">
+                        {% for error in field.errors %}
+                        <li class="item">{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                <!-- End field errors -->
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <button class="ui submit button" type="submit">Submit</button>
+    </form>
+</div>
+{% endblock content %}

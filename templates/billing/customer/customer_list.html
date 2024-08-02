@@ -30,8 +30,7 @@
             {% for customer in customer_list %}
             <tr>
                 <td>{{ customer.pk }}</td>
-                <td><a href="{% url 'billing:customer-detail' customer.pk %}">{{ customer.first_name }} {{
-                        customer.middle_name }} {{ customer.last_name }}</a></td>
+                <td><a href="{% url 'billing:customer-detail' customer.pk %}">{{ customer.get_name }}</a></td>
                 <td>{{ customer.tin }}</td>
                 <td>{{ customer.cell_num }}</td>
                 <td>{{ customer.email }}</td>

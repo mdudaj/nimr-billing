@@ -20,7 +20,7 @@
             <div class="ui segment centered">
                 <h2 class="ui header">{{ revenuesource.name }}</h2>
                 <div class="ui large pointing label">
-                    {{ revenuesource.gfs_code }}
+                    GFS Code: {{ revenuesource.gfs_code }}
                 </div>
             </div>
             <div class="ui horizontal segments">
@@ -31,6 +31,18 @@
                 <div class="ui segment">
                     <h4 class="ui header">Sub Category</h4>
                     <p>{{ revenuesource.sub_category }}</p>
+                </div>
+            </div>
+            <div class="ui segment">
+                <div class="ui middle aligned divided animated ordered list">
+                    {% for rs_item in revenuesource.revenuesourceitem_set.all %}
+                    <div class="item">
+                        <div class="content">
+                            <div class="header">{{ rs_item.description }}</div>
+                            {{ rs_item.currency }} {{ rs_item.amt }}
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>

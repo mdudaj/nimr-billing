@@ -1,0 +1,50 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} System Info List {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">System Info List</h1>
+        <a href="{% url 'billing:system-info-create' %}" class="ui right floated vertical animated primary button"
+            tabindex="0">
+            <div class="visible content">Add System Info</div>
+            <div class="hidden content centered">
+                <i class="plus square outline large icon"></i>
+            </div>
+        </a>
+    </div>
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>System Code</th>
+                <th>System Name</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for system_info in system_info_list %}
+            <tr>
+                <td>{{ system_info.code }}</td>
+                <td><a href="{% url 'billing:system-info-detail' system_info.pk %}">{{ system_info.system_name }}</a></td>
+                <td>
+                    {% if system_info.is_active %}
+                        <i class="check circle outline icon"></i>
+                    {% else %}
+                        <i class="times circle outline icon"></i>
+                    {% endif %}
+                </td>
+                <td class="single line">
+                    <a href="{% url 'billing:system-info-detail' system_info.pk %}" class="ui icon large button primary"><i
+                            class="icon info"></i></a>
+                    <a href="{% url 'billing:system-info-delete' system_info.pk %}" class="ui icon large button negative"><i
+                            class="icon trash"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

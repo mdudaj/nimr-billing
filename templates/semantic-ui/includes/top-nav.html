@@ -9,7 +9,7 @@
         <a href="#" class="item">
             <i class="bell icon"></i>
         </a>
-        <div class="ui dropdown item">
+        <!-- <div class="ui dropdown item">
             <i class="user cirlce icon"></i>
             <div class="menu">
                 <a href="#" class="item">
@@ -19,6 +19,9 @@
                 <a href="#" class="item">
                     <i class="sign-out icon"></i> Logout </a>
             </div>
-        </div>
+        </div> -->
+        <a href="{% url 'accounts:logout' %}" class="item">
+            <i class="sign-out icon"></i> Logout
+        </a>
     </div>
 </div>
