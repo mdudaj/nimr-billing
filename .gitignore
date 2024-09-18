@@ -9,6 +9,7 @@ build/
 env
 /staticfiles/
 security/*
+logs/
 
 #src
 *.sqlite*
