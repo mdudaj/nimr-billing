@@ -25,6 +25,10 @@ django-guardian = "*"
 pyyaml = "*"
 uritemplate = "*"
 pygments = "*"
+djangorestframework-api-key = "==2.*"
+selenium = "*"
+pyvirtualdisplay = "*"
+chromedriver-autoinstaller = "*"
 
 [dev-packages]
 

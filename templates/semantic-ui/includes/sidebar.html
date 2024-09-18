@@ -17,6 +17,9 @@
             <a class="item" href="{% url 'billing:bill-list' %}">
                 <div><i class="clipboard list icon"></i>Bills</div>
             </a>
+            <a class="item" href="{% url 'billing:cancelled-bill-list' %}">
+                <div><i class="ban icon"></i>Cancelled Bills</div>
+            </a>
             <a class="item" href="{% url 'billing:customer-list' %}">
                 <div><i class="users icon"></i>Customers</div>
             </a>
@@ -29,6 +32,14 @@
         </div>
     </div>
     <div class="item">
+        <div class="header">Payment Management</div>
+        <div class="menu">
+            <a class="item" href="{% url 'billing:payment-list' %}">
+                <div><i class="money bill alternate icon"></i>Payments</div>
+            </a>
+        </div>
+    </div>
+    <div class="item">
         <div class="header">System Integration <i class="puzzle piece icon"></i></div>
         <div class="menu">
             <a class="item" href="{% url 'billing:system-info-list' %}">
@@ -36,4 +47,5 @@
             </a>
         </div>
     </div>
+</div>
 </div>

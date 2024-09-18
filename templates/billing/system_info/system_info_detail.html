@@ -16,19 +16,19 @@
         </a>
     </div>
     <div class="ui segment">
-        <h2 class="ui header">{{ system_info.name }}</h2>
-        <p><strong>Active:</strong> {% if system_info.is_active %}<i class="check outline icon"></i>{% else %}<i class="times outline icon"></i>{% endif %}</p>
-        <p><strong>Control Number Callback URL:</strong> {{ system_info.cntrnum_response_callback }}</p>
-        <p><strong>Payment Notification Callback URL:</strong> {{ system_info.pay_notification_callback }}</p>
-        <p><strong>Created:</strong> {{ system_info.created }}</p>
-        <p><strong>Last Updated:</strong> {{ system_info.updated }}</p>
+        <h2 class="ui header">{{ systeminfo.name }}</h2>
+        <p><strong>Active:</strong> {% if systeminfo.is_active %}<i class="check outline icon"></i>{% else %}<i class="times outline icon"></i>{% endif %}</p>
+        <p><strong>Control Number Callback URL:</strong> {{ systeminfo.cntrnum_response_callback }}</p>
+        <p><strong>Payment Notification Callback URL:</strong> {{ systeminfo.pay_notification_callback }}</p>
+        <p><strong>Created:</strong> {{ systeminfo.created }}</p>
+        <p><strong>Last Updated:</strong> {{ systeminfo.updated }}</p>
     </div>
     <div class="ui clearing basic segment">
-        <a href="{% url 'billing:system-info-update' system_info.pk %}" class="ui left floated primary button"
+        <a href="{% url 'billing:system-info-update' systeminfo.pk %}" class="ui left floated primary button"
             tabindex="0">
             Update
         </a>
-        <a href="{% url 'billing:system-info-delete' system_info.pk %}" class="ui right floated negative button"
+        <a href="{% url 'billing:system-info-delete' systeminfo.pk %}" class="ui right floated negative button"
             tabindex="0">
             Delete
         </a>

@@ -1,0 +1,45 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Cancelled Bill Details {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Cancelled Bill Details</h1>
+        <a href="{% url 'billing:cancelled-bill-list' %}" class="ui right floated vertical animated primary button"
+            tabindex="0">
+            <div class="visible content">Back to List</div>
+            <div class="hidden content centered">
+                <i class="arrow left icon"></i>
+            </div>
+        </a>
+    </div>
+
+    <div class="ui segment">
+        <h2 class="ui dividing header">Bill Information</h2>
+        <p><strong>Bill ID:</strong> {{ cancelled_bill.bill.bill_id }}</p>
+        <p><strong>Original Amount:</strong> {{ cancelled_bill.bill.amount }}</p>
+        <p><strong>Issue Date:</strong> {{ cancelled_bill.bill.issue_date }}</p>
+    </div>
+
+    <div class="ui segment">
+        <h2 class="ui dividing header">Cancellation Details</h2>
+        <p><strong>Reason for Cancellation:</strong> {{ cancelled_bill.reason }}</p>
+        <p><strong>Status:</strong> {{ cancelled_bill.get_status_display }}</p>
+        <p><strong>Cancelled By:</strong> {{ cancelled_bill.gen_by.get_full_name }}</p>
+        <p><strong>Approved By:</strong> {{ cancelled_bill.appr_by.get_full_name }}</p>
+        <p><strong>Cancelled At:</strong> {{ cancelled_bill.created_at }}</p>
+    </div>
+
+    <div class="ui segment">
+        <h2 class="ui dividing header">Actions</h2>
+        <a href="{% url 'billing:cancelled-bill-update' cancelled_bill.pk %}" class="ui icon large button primary">
+            <i class="edit icon"></i> Edit
+        </a>
+        <a href="{% url 'billing:cancelled-bill-delete' cancelled_bill.pk %}" class="ui icon large button negative">
+            <i class="trash icon"></i> Delete
+        </a>
+    </div>
+</div>
+{% endblock content %}

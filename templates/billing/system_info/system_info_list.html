@@ -25,10 +25,10 @@
             </tr>
         </thead>
         <tbody>
-            {% for system_info in system_info_list %}
+            {% for system_info in systeminfo_list %}
             <tr>
                 <td>{{ system_info.code }}</td>
-                <td><a href="{% url 'billing:system-info-detail' system_info.pk %}">{{ system_info.system_name }}</a></td>
+                <td><a href="{% url 'billing:system-info-detail' system_info.pk %}">{{ system_info.name }}</a></td>
                 <td>
                     {% if system_info.is_active %}
                         <i class="check circle outline icon"></i>

@@ -8,6 +8,7 @@ from .models import (
     Bill,
     BillItem,
     SystemInfo,
+    PaymentReconciliation,
 )
 
 
@@ -130,3 +131,13 @@ class BaseBillItemInlineFormSet(forms.BaseInlineFormSet):
 BillItemInlineFormSet = forms.inlineformset_factory(
     Bill, BillItem, form=BillItemForm, formset=BaseBillItemInlineFormSet, extra=1
 )
+
+
+class PaymentReconciliationForm(forms.ModelForm):
+    trx_date = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}), required=False
+    )
+
+    class Meta:
+        model = PaymentReconciliation
+        fields = ["trx_date"]

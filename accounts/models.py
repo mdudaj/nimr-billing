@@ -32,6 +32,8 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
         return self.email
 
     def get_full_name(self):
+        if self.middle_name is None:
+            return f"{self.first_name} {self.last_name}"
         return f"{self.first_name} {self.middle_name} {self.last_name}"
 
     def get_short_name(self):

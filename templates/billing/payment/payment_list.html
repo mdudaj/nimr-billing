@@ -1,0 +1,36 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Payment List {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Payment List</h1>
+    </div>
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>Bill Number</th>
+                <th>Control Number</th>
+                <th>Transaction ID</th>
+                <th>Transaction Date</th>
+                <th>Bill Amount</th>
+                <th>Paid Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payment_list %}
+            <tr>
+                <td><a href="{% url 'billing:payment-detail' payment.pk %}">{{ payment.bill.bill_id }}</a></td>
+                <td>{{ payment.cust_cntr_num }}</td>
+                <td>{{ payment.trx_id }}</td>
+                <td>{{ payment.trx_date }}</td>
+                <td><small>{{ payment.currency }}</small> {{ payment.bill_amt }}</td>
+                <td><small>{{ payment.currency }}</small> {{ payment.paid_amt }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

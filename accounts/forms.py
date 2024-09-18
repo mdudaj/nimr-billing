@@ -21,8 +21,3 @@ class CustomAuthenticationForm(AuthenticationForm):
         strip=False,
         widget=forms.PasswordInput(attrs={"placeholder": "Enter your password"}),
     )
-    verification_token = forms.CharField(
-        max_length=6,
-        required=False,
-        widget=forms.TextInput(attrs={"placeholder": "Enter the token below"}),
-    )

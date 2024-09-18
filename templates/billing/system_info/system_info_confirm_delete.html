@@ -9,8 +9,8 @@
         <h1 class="ui left floated header">Delete System Info</h1>
     </div>
     <div class="ui segment">
-        <p>Are you sure you want to delete the system info "{{ system_info.name }}"?</p>
-        <form method="post" action="{% url 'billing:system-info-delete' system_info.id %}">
+        <p>Are you sure you want to delete the system info "{{ systeminfo.name }}"?</p>
+        <form method="post" action="{% url 'billing:system-info-delete' systeminfo.id %}">
             {% csrf_token %}
             <button class="ui red button" type="submit">Delete</button>
             <a href="{% url 'billing:system-info-list' %}" class="ui button">Cancel</a>

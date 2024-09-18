@@ -2,10 +2,18 @@ import requests
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.mail import send_mail
+from django.http import JsonResponse
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
-from .models import Bill, Payment, PaymentReconciliation, PaymentGatewayLog, SystemInfo
+from .models import (
+    Bill,
+    Payment,
+    PaymentReconciliation,
+    PaymentGatewayLog,
+    SystemInfo,
+    CancelledBill,
+)
 from .utils import (
     compose_bill_control_number_request_payload,
     compose_acknowledgement_response_payload,
@@ -79,7 +87,7 @@ def send_bill_control_number_request(self, req_id, bill_id):
         pg_log.req_ack = xml_to_dict(response.text)
         pg_log.save()
         logger.info(
-            f"Bill control number request sent: Response Code - {response.status_code}, Response Text - {response.text}"
+            f"Bill control number request sent: Status - {response.status_code}, Response - {response.text}"
         )
 
         # If response status is not successful, raise an exception to trigger retry
@@ -89,6 +97,13 @@ def send_bill_control_number_request(self, req_id, bill_id):
         process_bill_control_number_request_acknowledgement.delay(response.text)
 
     except requests.RequestException as e:
+        # Handle any request exceptions that occur during the request
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+            status="ERROR",
+            status_desc=f"Error sending bill control number request: {str(e)}",
+        )
+        # Log the error
         logger.error(f"Error sending bill control number request: {e}")
 
         # Retry the task
@@ -96,7 +111,14 @@ def send_bill_control_number_request(self, req_id, bill_id):
 
     except Exception as e:
         # Handle any exceptions that occur during the request or processing of the response
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+            status="ERROR",
+            status_desc=f"Error sending bill control number request: {str(e)}",
+        )
+        # Log the error
         logger.error(f"Unexpected error sending bill control number request: {e}")
+        # Send email notification to administrators
         send_mail_notification.delay(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
@@ -121,18 +143,22 @@ def process_bill_control_number_request_acknowledgement(response_data):
         if ack_sts_code == "7101":  # Successfull acknowledgement
             # Wait for GEPG API to process the request and send the final response
             # Log the status, the response will be processed by a callback
-            PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                status="ACKNOWLEDGED",
-                status_desc=ack_sts_desc,
+
+            # Update the PaymentGatewayLog object with the acknowledgment status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+                status="PENDING",
+                status_desc=f"Bill control number request acknowledged: {ack_sts_desc}",
             )
+            # Log the successful acknowledgment
             logger.info(
                 f"Bill control number request for the request ID: {req_id} was successful. Acknowledgement ID: {ack_id}"
             )
         else:
-            # Any other acknowledgement status code, log and send send an email notification to developers
+            # Any other acknowledgement status code, log and send send an email notification to administrators
+            # Update the PaymentGatewayLog object with the status and description
             PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                status="ACKNOWLEDGED",
-                status_desc=ack_sts_desc,
+                status="ERROR",
+                status_desc=f"Bill control number request acknowledged: {ack_sts_desc}",
             )
             logger.error(
                 f"Error processing bill control number request for request ID: {req_id} - {ack_sts_desc}"
@@ -146,17 +172,18 @@ def process_bill_control_number_request_acknowledgement(response_data):
             )
     except Exception as e:
         # Handle any exceptions that occur during the processing of the acknowledgement response
-        PaymentGatewayLog.objects.filter(req_id=req_id).update(
-            status="ACKNOWLEDGED",
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+            status="ERROR",
             status_desc=f"Error processing acknowledgement response: {str(e)}",
         )
-        logger.error(
-            f"Error processing acknowledgement response fo the request ID: {req_id} - {str(e)}"
-        )
+        # Log the error
+        logger.error(f"Error processing acknowledgement response : {str(e)}")
+        # Send email notification to administrators
         send_mail_notification.delay(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
-            f"Error processing acknowledgement response for the request ID: {req_id} - {str(e)}",
+            f"Error processing acknowledgement response: {str(e)}",
         )
 
 
@@ -179,8 +206,13 @@ def process_bill_control_number_response(
         # Process the final response based on the status code
         if res_sts_code == "7101":  # Successful response
             # Log the successful response
+            # Update the PaymentGatewayLog object with success status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+                status="SUCCESS",
+                status_desc=f"Bill control number request processed successfully. Control Number: {cust_cntr_num}",
+            )
             logger.info(
-                f"Bill control number for request - {req_id} returned successfully. Bill ID: {bill_id}, Control Number: {cust_cntr_num}"
+                f"Bill {bill_id} control number request {req_id} processed successfully. Control Number: {cust_cntr_num}"
             )
             # Update the bill object with the control number
             bill = Bill.objects.get(bill_id=bill_id)
@@ -201,24 +233,32 @@ def process_bill_control_number_response(
 
                 # Update the PaymentGatewayLog object with the response data
                 if response.status_code == 200:
-                    PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                        status="BILL CONTROL NUMBER REQUEST SUCCESSFUL",
-                        status_desc=f"Control number sent to {bill.sys_info.name}",
+                    PaymentGatewayLog.objects.filter(
+                        req_id=req_id, req_type="1"
+                    ).update(
+                        status="SUCCESS",
+                        status_desc=f"Control number {cust_cntr_num} sent to {bill.sys_info.name}",
                     )
-                PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                    status="BILL CONTROL NUMBER REQUEST SUCCESSFUL",
-                    status_desc=f"Error sending control number to {bill.sys_info.name}",
-                )
+                else:
+                    PaymentGatewayLog.objects.filter(
+                        req_id=req_id, req_type="1"
+                    ).update(
+                        status="ERROR",
+                        status_desc=f"Error sending control number {cust_cntr_num} to {bill.sys_info.name}",
+                    )
 
         else:
             # Any other response status code log and send an email notification to developers
-            PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                status="BILL CONTROL NUMBER REQUEST UNSUCCESSFUL",
-                status_desc=f"Error processing final response: {res_sts_desc}",
+            # Update the PaymentGatewayLog object with status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+                status="ERROR",
+                status_desc=f"Error processing control number request final response: {bill_sts_desc}",
             )
+            # Log the error
             logger.error(
-                f"Error processing final response {res_id} for bill ID: {bill_id} - {bill_sts_code}: {bill_sts_desc}"
+                f"Error processing final response: {bill_sts_code}: {bill_sts_desc}"
             )
+            # Send email notification to administrators
             send_mail_notification.delay(
                 settings.DEVELOPER_EMAIL,
                 "Payment Gateway API Error",
@@ -227,13 +267,16 @@ def process_bill_control_number_response(
 
     except Exception as e:
         # Handle any exceptions that occur during the processing of the final response
-        PaymentGatewayLog.objects.filter(req_id=req_id).update(
-            status="BILL CONTROL NUMBER REQUEST UNSUCCESSFUL",
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+            status="ERROR",
             status_desc=f"Error processing final response: {str(e)}",
         )
+        # Log the error
         logger.error(
             f"Error processing final response for the request - {req_id} and  Bill ID - {bill_id}: {str(e)}"
         )
+        # Send email notification to administrators
         send_mail_notification.delay(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
@@ -266,6 +309,12 @@ def process_bill_payment_response(
 
     try:
         bill = Bill.objects.get(bill_id=bill_id)
+
+        # Convert trx_date to an ISO 8601 string
+        trx_date_str = (
+            trx_date.isoformat() if isinstance(trx_date, datetime) else trx_date
+        )
+
         # Create a Payment object to store the payment response details
         payment = Payment.objects.create(
             bill=bill,
@@ -286,10 +335,33 @@ def process_bill_payment_response(
             pyr_name=pyr_name,
         )
 
+        # Create a PaymentGatewayLog object to store the request and response data
+        PaymentGatewayLog.objects.create(
+            req_id=req_id,
+            req_type="5",
+            req_data={
+                "bill_id": bill_id,
+                "cntr_num": cust_cntr_num,
+                "psp_code": psp_code,
+                "psp_name": psp_name,
+                "trx_id": trx_id,
+                "payref_id": payref_id,
+                "bill_amt": bill_amt,
+                "paid_amt": paid_amt,
+                "paid_ccy": paid_ccy,
+                "coll_acc_num": coll_acc_num,
+                "trx_date": trx_date_str,
+                "pay_channel": pay_channel,
+                "pyr_cell_num": pyr_cell_num,
+            },
+            status="PENDING",
+            status_desc="Payment response received. Processing...",
+        )
+
         # Check if bill control number request came from external system
         if bill.sys_info is not None:
             # Send payment response to the external system
-            url = bill.sys_info.payment_response_callback
+            url = bill.sys_info.pay_notification_callback
             headers = {"Content-Type": "application/json"}
             payload = {
                 "bill_id": bill_id,
@@ -302,7 +374,7 @@ def process_bill_payment_response(
                 "paid_amt": paid_amt,
                 "paid_ccy": paid_ccy,
                 "coll_acc_num": coll_acc_num,
-                "trx_date": trx_date,
+                "trx_date": trx_date_str,
                 "pay_channel": pay_channel,
                 "pyr_cell_num": pyr_cell_num,
             }
@@ -310,29 +382,19 @@ def process_bill_payment_response(
 
             # Update the PaymentGatewayLog object with the response data
             if response.status_code == 200:
-                PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                    status="PAYMENT NOTIFICATION SUCCESSFUL",
-                    status_desc=f"Payment notification sent to {bill.sys_info.name}",
-                )
-
                 # Update the payment gateway log with the response data
-                PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                    status="PAYMENT NOTIFICATION SUCCESSFUL",
+                PaymentGatewayLog.objects.filter(req_id=req_id, req_type="5").update(
+                    status="SUCCESS",
                     status_desc=f"Payment notification sent to {bill.sys_info.name}",
                     res_data=response.json(),
                 )
-
-            PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                status="PAYMENT NOTIFICATION SUCCESSFUL",
-                status_desc=f"Error sending payment notification to {bill.sys_info.name}",
-            )
-
-            # Update the payement gateway log with the response data
-            PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                status="PAYMENT NOTIFICATION SUCCESSFUL",
-                status_desc=f"Error sending payment notification to {bill.sys_info.name}",
-                res_data=response.json(),
-            )
+            else:
+                # Update the payement gateway log with the response data
+                PaymentGatewayLog.objects.filter(req_id=req_id, req_type="5").update(
+                    status="ERROR",
+                    status_desc=f"Error sending payment notification to {bill.sys_info.name}",
+                    res_data=response.json(),
+                )
 
         # Log the successful payment response
         logger.info(
@@ -341,13 +403,16 @@ def process_bill_payment_response(
 
     except Exception as e:
         # Handle any exceptions that occur during the processing of the payment response
-        PaymentGatewayLog.objects.filter(req_id=req_id).update(
-            status="PAYMENT NOTIFICATION UNSUCCESSFUL",
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="5").update(
+            status="ERROR",
             status_desc=f"Error processing payment response: {str(e)}",
         )
+        # Log the error
         logger.error(
             f"Error processing payment response for request ID: {req_id} and Bill ID: {bill_id}: {str(e)}"
         )
+        # Send email notification to administrators
         send_mail_notification.delay(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
@@ -358,17 +423,16 @@ def process_bill_payment_response(
 @shared_task(
     bind=True, max_retries=5, default_retry_delay=60
 )  # Retry 5 times with an initial delay of 60 seconds
-def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code):
+def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code, trxDt):
     # Send the bill reconciliation request to the GEPG API
     # This task is triggered by a scheduled task for reconciliation of the previous day starting between 0600hrs to 2359hrs
 
-    # Get the date of the previous day
-    prev_day = datetime.now() - timedelta(days=1)
-    trxDt = prev_day.strftime("%Y-%m-%d")
+    # Load private key for signing the request
+    private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
 
     try:
         # Send the bill reconciliation request to the Payment Gateway API
-        url = settings.BILL_RECONCILIATION_URL
+        url = settings.RECONCILIATION_REQUEST_URL
 
         # GEPG API headers
         headers = {
@@ -380,11 +444,30 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code):
 
         # Compose the bill reconciliation request payload
         payload = compose_bill_reconciliation_request_payload(
-            req_id, sp_grp_code, sys_code, trxDt
+            req_id, sp_grp_code, sys_code, trxDt, private_key
+        )
+
+        # Create a PaymentGatewayLog object to store the request data
+        pg_log = PaymentGatewayLog.objects.create(
+            req_id=req_id,
+            req_type="6",
+            req_data=xml_to_dict(payload),
+        )
+
+        logger.info(
+            f"Sending reconciliation request Request ID: {req_id} Payload: {payload}"
         )
 
         # Send the bill reconciliation request to the GEPG API
         response = requests.post(url, headers=headers, data=payload)
+
+        logger.info(
+            "Reconciliation request sent: Status code {response.status_code} - Response {response.text}"
+        )
+
+        # Update the PaymentGatewayLog object with the acknowledgment response data
+        pg_log.req_ack = xml_to_dict(response.text)
+        pg_log.save()
 
         # If response status is not successful, raise an exception to trigger retry
         response.raise_for_status()
@@ -393,6 +476,12 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code):
         process_bill_reconciliation_request_acknowledgement.delay(response.text)
 
     except requests.RequestException as e:
+        # Handle any request exceptions that occur during the request
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+            status="ERROR",
+            status_desc=f"Error sending bill reconciliation request: {str(e)}",
+        )
         # Log the error
         logger.error(f"Error sending bill reconciliation request: {e}")
 
@@ -400,6 +489,12 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code):
         raise self.retry(exc=e)
 
     except Exception as e:
+        # Handle any other exceptions that occur during the request
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+            status="ERROR",
+            status_desc=f"Error sending bill reconciliation request: {str(e)}",
+        )
         # Log the error
         logger.error(f"Unexpected error sending bill reconciliation request: {e}")
 
@@ -423,10 +518,26 @@ def process_bill_reconciliation_request_acknowledgement(response_data):
         )
 
         if ack_sts_code == "7101":  # Successful acknowledgement
-            # Proceed to fetch the bill reconciliation response
-            pass
+            # Log the successful acknowledgement
+            logger.info(
+                f"Bill reconciliation request for request ID: {req_id} was successful. Acknowledgement ID: {ack_id}"
+            )
+
+            # Update the PaymentGatewayLog object with the acknowledgment status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+                status="PENDING",
+                status_desc=ack_sts_desc,
+            )
         else:
-            # Any other acknowledgement status code, send an email notification to developers
+            # Any other acknowledgement status code, log and send an email notification to developers
+            logger.error(
+                f"Error processing bill reconciliation request for request ID: {req_id} - {ack_sts_desc}"
+            )
+            # Update the PaymentGatewayLog status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+                status="ERROR",
+                status_desc=ack_sts_desc,
+            )
             send_mail_notification.delay(
                 settings.DEVELOPER_EMAIL,
                 "Payment Gateway API Error",
@@ -435,6 +546,14 @@ def process_bill_reconciliation_request_acknowledgement(response_data):
 
     except Exception as e:
         # Handle any exceptions that occur during the processing of the acknowledgement response
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+            status="ERROR",
+            status_desc=f"Error processing bill reconciliation request acknowledgement: {str(e)}",
+        )
+        logger.error(
+            f"Error processing bill reconciliation request acknowledgement: {str(e)}"
+        )
         send_mail_notification.delay(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
@@ -443,10 +562,48 @@ def process_bill_reconciliation_request_acknowledgement(response_data):
 
 
 @shared_task
-def process_bill_reconciliation_response(response_data):
+def process_bill_reconciliation_response(
+    res_id, req_id, pay_sts_code, pay_sts_desc, pmt_trx_dtls
+):
     # Process the bill reconciliation response received from the GEPG API
-    # Extract relevant information from the response and update payment reconciliation object
-    pass
+    try:
+        # Check if payment transaction details are available and create PaymentReconciliation objects
+        if pmt_trx_dtls:
+            for pmt_trx_dtl in pmt_trx_dtls:
+                PaymentReconciliation.objects.create(**pmt_trx_dtl)
+
+            # Update the PaymentGatewayLog object with status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+                status="SUCCESS",
+                status_desc=f"Bill reconciliation response processed successfully. {len(pmt_trx_dtls)} payment transactions reconciled.",
+            )
+
+        # Log the successful reconciliation response
+        logger.info(
+            f"Bill reconciliation response for request ID: {req_id} processed successfully."
+        )
+
+        # Update the PaymentGatewayLog object with the status and description
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+            status="SUCCESS",
+            status_desc=f"Bill reconciliation response processed successfully. No payment transactions to reconcile at this time.",
+        )
+
+    except Exception as e:
+        # Handle any exceptions that occur during the processing of the response
+        # Update the PaymentGatewayLog object with the error message
+        PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+            status="ERROR",
+            status_desc=f"Error processing bill reconciliation response: {str(e)}",
+        )
+        logger.error(
+            f"Error processing bill reconciliation response for request ID: {req_id} - {str(e)}"
+        )
+        send_mail_notification.delay(
+            settings.DEVELOPER_EMAIL,
+            "Payment Gateway API Error",
+            f"Error processing bill reconciliation response for request ID: {req_id} - {str(e)}",
+        )
 
 
 @shared_task

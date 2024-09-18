@@ -18,14 +18,25 @@
         </div>
         <div class="ui segments">
             <div class="ui segment">
-                <h2 class="ui header">{{ bill.bill_id }}</h2>
+                <h2 class="ui header">Bill Number: {{ bill.bill_id }}</h2>
                 <p>Issue Date: {{ bill.gen_date }}</p>
                 <p>Customer: {{ bill.customer.get_name }}</p>
-                <p>Total Amount: {{ bill.amt }}</p>
+                <p>Total Amount: <small>{{ bill.currency }}</small> {{ bill.amt }}</p>
                 {% if bill.cntr_num %}
                 <p>Control Number: {{ bill.cntr_num }}</p>
+                {% elif bill.get_cntr_num_request_status.status == 'ERROR' %}
+                <p id="cntrnum" class="ui red icon message">
+                    <i class="exclamation triangle icon"></i> {{ bill.get_cntr_num_request_status.status_desc }}
+                </p>
                 {% else %}
                 <p id="cntrnum">Control Number: Still working on it ...</p>
+                {% endif %}
+                {% if bill.get_cntr_num_request_status.status != 'ERROR' %}
+                {% if bill.is_paid %}
+                <p class="ui large green label">Status: Paid</p>
+                {% else %}
+                <p class="ui large red label">Status: Unpaid</p>
+                {% endif %}
                 {% endif %}
             </div>
             <div class="ui horizontal segments">
@@ -58,14 +69,26 @@
 {% block extrascript %}
 <script>
     $(document).ready(function () {
-        const cntrnum = $('#cntrnum');
-        let dots = ['.', '..', '...'];
-        let index = 0;
+    const billId = '{{ bill.id }}';
+    const cntrnum = $('#cntrnum');
+    let dots = ['.', '..', '...'];
+    let index = 0;
 
-        setInterval(function () {
-            cntrnum.text('Control Number: Still working on it' + dots[index]);
-            index = (index + 1) % dots.length;
-        }, 500); // Change the interval (in milliseconds) as needed
-    });
+    setInterval(function () {
+        // Make an AJAX request to check for task status
+        $.ajax({
+            url: "{% url 'billing:check-control-number-request-status' 0 %}".replace('0', billId),
+            method: 'GET',
+            success: function(data) {
+                if (data.status === 'ERROR') {
+                    cntrnum.html('<i class="exclamation triangle icon"></i> ' + data.message);
+                } else {
+                    cntrnum.text('Still working on it' + dots[index]);
+                    index = (index + 1) % dots.length;
+                }
+            }
+        });
+    }, 5000);
+});
 </script>
 {% endblock extrascript %}

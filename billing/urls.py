@@ -25,22 +25,50 @@ from .views import (
     BillControlNumberResponseCallbackView,
     BillControlNumberPaymentCallbackView,
     BillControlNumberReconciliationCallbackView,
+    BillCancellationListView,
+    BillCancellationDetailView,
+    BillCancellationCreateView,
+    BillCancellationUpdateView,
+    BillCancellationDeleteView,
     SystemInfoListView,
     SystemInfoDetailView,
     SystemInfoCreateView,
     SystemInfoUpdateView,
     SystemInfoDeleteView,
+    PaymentListView,
+    PaymentDetailView,
+    check_control_number_request_status,
 )
 
 app_name = "billing"
 
 urlpatterns = [
     path("", BillingIndexView.as_view(), name="billing-index"),
-    path("system-info/", SystemInfoListView.as_view(), name="system-info-list"),
-    path("system-info/<int:pk>/", SystemInfoDetailView.as_view(), name="system-info-detail"),
-    path("system-info/create/", SystemInfoCreateView.as_view(), name="system-info-create"),
-    path("system-info/<int:pk>/update/", SystemInfoUpdateView.as_view(), name="system-info-update"),
-    path("system-info/<int:pk>/delete/", SystemInfoDeleteView.as_view(), name="system-info-delete"),
+    path(
+        "system-info/",
+        SystemInfoListView.as_view(),
+        name="system-info-list",
+    ),
+    path(
+        "system-info/<int:pk>/",
+        SystemInfoDetailView.as_view(),
+        name="system-info-detail",
+    ),
+    path(
+        "system-info/create/",
+        SystemInfoCreateView.as_view(),
+        name="system-info-create",
+    ),
+    path(
+        "system-info/<int:pk>/update/",
+        SystemInfoUpdateView.as_view(),
+        name="system-info-update",
+    ),
+    path(
+        "system-info/<int:pk>/delete/",
+        SystemInfoDeleteView.as_view(),
+        name="system-info-delete",
+    ),
     path("customer/", CustomerListView.as_view(), name="customer-list"),
     path("customer/<int:pk>/", CustomerDetailView.as_view(), name="customer-detail"),
     path("customer/create/", CustomerCreateView.as_view(), name="customer-create"),
@@ -119,5 +147,37 @@ urlpatterns = [
         "bill-control-number-reconciliation-callback/",
         BillControlNumberReconciliationCallbackView.as_view(),
         name="bill-control-number-reconciliation-callback",
+    ),
+    path("payment/", PaymentListView.as_view(), name="payment-list"),
+    path("payment/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail"),
+    path(
+        "check-control-number-request-status/<int:bill_id>/",
+        check_control_number_request_status,
+        name="check-control-number-request-status",
+    ),
+    path(
+        "cancelled-bill/",
+        BillCancellationListView.as_view(),
+        name="cancelled-bill-list",
+    ),
+    path(
+        "cancelled-bill/<int:pk>/",
+        BillCancellationDetailView.as_view(),
+        name="cancelled-bill-detail",
+    ),
+    path(
+        "cancelled-bill/create/",
+        BillCancellationCreateView.as_view(),
+        name="cancelled-bill-create",
+    ),
+    path(
+        "cancelled-bill/<int:pk>/update/",
+        BillCancellationUpdateView.as_view(),
+        name="cancelled-bill-update",
+    ),
+    path(
+        "cancelled-bill/<int:pk>/delete/",
+        BillCancellationDeleteView.as_view(),
+        name="cancelled-bill-delete",
     ),
 ]

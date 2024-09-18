@@ -1,0 +1,67 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Cancelled Bill List {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Cancelled Bill List</h1>
+        <a href="{% url 'billing:cancelled-bill-create' %}" class="ui right floated vertical animated primary button" tabindex="0">
+            <div class="visible content">Cancel Bill</div>
+            <div class="hidden content centered">
+                <i class="plus square outline large icon"></i>
+            </div>
+        </a>
+    </div>
+
+    <!-- Messages Block -->
+    {% if messages %}
+    <div class="ui floating message">
+        <i class="close icon"></i>
+        <div class="ui middle aligned animated divided list">
+            {% for message in messages %}
+            <div class="item {{ message.tags }}">
+                <p>{{ message }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Bill ID</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Cancelled By</th>
+                <th>Approved By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cancelled_bill in cancelled_bills %}
+            <tr>
+                <td>{{ cancelled_bill.pk }}</td>
+                <td><a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}">{{ cancelled_bill.bill.bill_id }}</a></td>
+                <td>{{ cancelled_bill.reason }}</td>
+                <td>{{ cancelled_bill.get_status_display }}</td>
+                <td>{{ cancelled_bill.gen_by.get_full_name }}</td>
+                <td>{{ cancelled_bill.appr_by.get_full_name }}</td>
+                <td class="single line">
+                    <a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}" class="ui icon large button primary">
+                        <i class="icon info"></i>
+                    </a>
+                    <a href="{% url 'billing:cancelled-bill-delete' cancelled_bill.pk %}" class="ui icon large button negative">
+                        <i class="icon trash"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

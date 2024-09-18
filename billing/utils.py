@@ -181,9 +181,11 @@ def compose_bill_control_number_request_payload(
 
     bill_pay_plan_element = SubElement(bill_dtl_element, "PayPlan")
     bill_pay_plan_element.text = "1"
+    # bill_pay_plan_element.text = str(bill_obj.pay_plan)
 
     bill_pay_lim_typ_element = SubElement(bill_dtl_element, "PayLimTyp")
     bill_pay_lim_typ_element.text = "1"
+    # bill_pay_lim_typ_element.text = str(bill_obj.pay_lim_type)
 
     bill_pay_lim_amt_element = SubElement(bill_dtl_element, "PayLimAmt")
     bill_pay_lim_amt_element.text = "0.00"
@@ -311,20 +313,27 @@ def compose_payment_response_acknowledgement_payload(
     ack_sts_code_element.text = str(ack_sts_code)
 
     # Convert the XML to a string
-    payload_str = tostring(gepg_element, encoding="utf-8")
+    pmt_sp_ntf_req_ack_element_str = tostring(
+        pmt_sp_ntf_req_ack_element, encoding="utf-8"
+    )
 
     # Sign the payload
-    signature = sign_payload(payload_str, private_key)
+    signature = sign_payload(pmt_sp_ntf_req_ack_element_str, private_key)
 
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
     signature_element.text = signature
 
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+    return payload_str
 
 
-def compose_bill_reconciliation_request_payload(req_id, sp_grp_code, sys_code, trxDt):
+def compose_bill_reconciliation_request_payload(
+    req_id, sp_grp_code, sys_code, trxDt, private_key
+):
     """
     Compose the XML payload for the reconciliation request based on the provided request ID.
     """
@@ -346,16 +355,26 @@ def compose_bill_reconciliation_request_payload(req_id, sp_grp_code, sys_code, t
     rsv1_element = SubElement(suc_sp_pmt_req_element, "Rsv1")
     rsv2_element = SubElement(suc_sp_pmt_req_element, "Rsv2")
     rsv3_element = SubElement(suc_sp_pmt_req_element, "Rsv3")
+
+    # Convert the XML to a string
+    suc_sp_pmt_req_element_str = tostring(suc_sp_pmt_req_element, encoding="utf-8")
+
+    # Sign the payload
+    signature = sign_payload(suc_sp_pmt_req_element_str, private_key)
+
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
-    signature_element.text = "SignatureGoesHere"
+    signature_element.text = signature
+
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
 
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+    return payload_str
 
 
 def compose_bill_reconciliation_response_acknowledgement_payload(
-    ack_id, res_id, ack_sts_code
+    ack_id, res_id, ack_sts_code, private_key
 ):
     """
     Compose the XML payload for the reconciliation response acknowledgement based on the provided parameters.
@@ -373,12 +392,24 @@ def compose_bill_reconciliation_response_acknowledgement_payload(
     # Add AckStsCode to sucSpPmtResAck
     ack_sts_code_element = SubElement(suc_sp_pmt_res_ack_element, "AckStsCode")
     ack_sts_code_element.text = str(ack_sts_code)
+
+    # Convert the XML to a string
+    suc_sp_pmt_res_ack_element_str = tostring(
+        suc_sp_pmt_res_ack_element, encoding="utf-8"
+    )
+
+    # Sign the payload
+    signature = sign_payload(suc_sp_pmt_res_ack_element_str, private_key)
+
     # Add signature element
     signature_element = SubElement(gepg_element, "signature")
-    signature_element.text = "SignatureGoesHere"
+    signature_element.text = signature
+
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
 
     # Return the XML payload as a string
-    return tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+    return payload_str
 
 
 def parse_bill_control_number_request_acknowledgement(response_data):
@@ -534,71 +565,201 @@ def parse_bill_reconciliation_response(response_data):
     try:
         # parse the XML response data
         root = ET.fromstring(response_data)
+
         # Extract relevant information from the response
         res_id = root.find(".//ResId").text
         req_id = root.find(".//ReqId").text
-        sp_grp_code = root.find(".//SpGrpCode").text
-        sys_code = root.find(".//SysCode").text
         pay_sts_code = root.find(".//PayStsCode").text
         pay_sts_desc = root.find(".//PayStsDesc").text
-        pmt_dtls = []
-        pmt_trx_dtls = root.findall(".//PmtTrxDtl")
-        for pmt_trx_dtl in pmt_trx_dtls:
-            cust_cntr_num = pmt_trx_dtl.find(".//CustCntrNum").text
-            grp_bill_id = pmt_trx_dtl.find(".//GrpBillId").text
-            sp_code = pmt_trx_dtl.find(".//SpCode").text
-            bill_id = pmt_trx_dtl.find(".//BillId").text
-            bill_ctr_num = pmt_trx_dtl.find(".//BillCtrNum").text
-            psp_code = pmt_trx_dtl.find(".//PspCode").text
-            psp_name = pmt_trx_dtl.find(".//PspName").text
-            trx_id = pmt_trx_dtl.find(".//TrxId").text
-            pay_ref_id = pmt_trx_dtl.find(".//PayRefId").text
-            bill_amt = pmt_trx_dtl.find(".//BillAmt").text
-            paid_amt = pmt_trx_dtl.find(".//PaidAmt").text
-            bill_pay_opt = pmt_trx_dtl.find(".//BillPayOpt").text
-            ccy = pmt_trx_dtl.find(".//Ccy").text
-            coll_acc_num = pmt_trx_dtl.find(".//CollAccNum").text
-            trx_dt_tm = pmt_trx_dtl.find(".//TrxDtTm").text
-            usd_pay_chnl = pmt_trx_dtl.find(".//UsdPayChnl").text
-            trdpty_trx_id = pmt_trx_dtl.find(".//TrdPtyTrxId").text
-            pyr_cell_num = pmt_trx_dtl.find(".//PyrCellNum").text
-            pyr_email = pmt_trx_dtl.find(".//PyrEmail").text
-            pyr_name = pmt_trx_dtl.find(".//PyrName").text
-            pmt_dtls.append(
-                {
-                    "cust_cntr_num": cust_cntr_num,
-                    "grp_bill_id": grp_bill_id,
-                    "sp_code": sp_code,
-                    "bill_id": bill_id,
-                    "bill_ctr_num": bill_ctr_num,
-                    "psp_code": psp_code,
-                    "psp_name": psp_name,
-                    "trx_id": trx_id,
-                    "pay_ref_id": pay_ref_id,
-                    "bill_amt": bill_amt,
-                    "paid_amt": paid_amt,
-                    "bill_pay_opt": bill_pay_opt,
-                    "ccy": ccy,
-                    "coll_acc_num": coll_acc_num,
-                    "trx_dt_tm": trx_dt_tm,
-                    "usd_pay_chnl": usd_pay_chnl,
-                    "trdpty_trx_id": trdpty_trx_id,
-                    "pyr_cell_num": pyr_cell_num,
-                    "pyr_email": pyr_email,
-                    "pyr_name": pyr_name,
-                }
-            )
 
-        return {
-            "res_id": res_id,
-            "req_id": req_id,
-            "sp_grp_code": sp_grp_code,
-            "sys_code": sys_code,
-            "pay_sts_code": pay_sts_code,
-            "pay_sts_desc": pay_sts_desc,
-            "pmt_dtls": pmt_dtls,
-        }
+        # Extract a list of reconciliation records from the response
+        pmt_trx_dtls = []
 
+        for pmt_trx_dtl in root.findall(".//PmtTrxDtl"):
+            pmt_trx_dtl_data = {
+                "cust_cntr_num": pmt_trx_dtl.find("CustCntrNum").text,
+                "grp_bill_id": pmt_trx_dtl.find("GrpBillId").text,
+                "sp_code": pmt_trx_dtl.find("SpCode").text,
+                "bill_id": pmt_trx_dtl.find("BillId").text,
+                "bill_ctr_num": pmt_trx_dtl.find("BillCtrNum").text,
+                "psp_code": pmt_trx_dtl.find("PspCode").text,
+                "psp_name": pmt_trx_dtl.find("PspName").text,
+                "trx_id": pmt_trx_dtl.find("TrxId").text,
+                "payref_id": pmt_trx_dtl.find("PayRefId").text,
+                "bill_amt": pmt_trx_dtl.find("BillAmt").text,
+                "paid_amt": pmt_trx_dtl.find("PaidAmt").text,
+                "bill_pay_opt": pmt_trx_dtl.find("BillPayOpt").text,
+                "currency": pmt_trx_dtl.find("Ccy").text,
+                "coll_acc_num": pmt_trx_dtl.find("CollAccNum").text,
+                "trx_date": datetime.fromisoformat(pmt_trx_dtl.find("TrxDtTm").text),
+                "usd_pay_chnl": pmt_trx_dtl.find("UsdPayChnl").text,
+                "trdpty_trx_id": pmt_trx_dtl.find("TrdPtyTrxId").text,
+                "qt_ref_id": (
+                    pmt_trx_dtl.find("QtRefId").text
+                    if pmt_trx_dtl.find("QtRefId") is not None
+                    else ""
+                ),
+                "pyr_cell_num": (
+                    pmt_trx_dtl.find("PyrCellNum").text
+                    if pmt_trx_dtl.find("PyrCellNum") is not None
+                    else ""
+                ),
+                "pyr_email": (
+                    pmt_trx_dtl.find("PyrEmail").text
+                    if pmt_trx_dtl.find("PyrEmail") is not None
+                    else ""
+                ),
+                "pyr_name": (
+                    pmt_trx_dtl.find("PyrName").text
+                    if pmt_trx_dtl.find("PyrName") is not None
+                    else ""
+                ),
+            }
+            pmt_trx_dtls.append(pmt_trx_dtl_data)
+
+        return res_id, req_id, pay_sts_code, pay_sts_desc, pmt_trx_dtls
     except Exception as e:
         # If parsing fails, raise an exception
         raise Exception("Error parsing reconciliation response: {}".format(str(e)))
+
+
+def compose_bill_cancellation_payload(
+    req_id, cancl_bill_obj, sp_grp_code, sp_sys_id, private_key
+):
+    """Compose the XML payload for the bill cancellation request."""
+
+    # Create the root element
+    gepg_element = Element("Gepg")
+
+    # Create the billCanclReq element
+    bill_cancl_req_element = SubElement(gepg_element, "billCanclReq")
+
+    # Add mandatory fields to billCanclReq
+    req_id_element = SubElement(bill_cancl_req_element, "ReqId")
+    req_id_element.text = str(req_id)
+
+    sp_grp_code_element = SubElement(bill_cancl_req_element, "SpGrpCode")
+    sp_grp_code_element.text = str(sp_grp_code)
+
+    sys_code_element = SubElement(bill_cancl_req_element, "SysCode")
+    sys_code_element.text = str(sp_sys_id)
+
+    bill_typ_element = SubElement(bill_cancl_req_element, "BillTyp")
+    bill_typ_element.text = "1"
+
+    grp_bill_id_element = SubElement(bill_cancl_req_element, "GrpBillId")
+    grp_bill_id_element.text = str(cancl_bill_obj.bill.grp_bill_id)
+
+    cancl_gen_by_element = SubElement(bill_cancl_req_element, "CanclGenBy")
+    cancl_gen_by_element.text = "Justine Tibalinda"
+
+    cancl_appr_by_element = SubElement(bill_cancl_req_element, "CanclApprBy")
+    cancl_appr_by_element.text = "Justine Tibalinda"
+
+    cancl_reasn_element = SubElement(bill_cancl_req_element, "CanclReasn")
+    cancl_reasn_element.text = str(cancl_bill_obj.reason)
+
+    # Convert the XML to a string
+    bill_cancl_req_str = tostring(
+        bill_cancl_req_element, encoding="utf-8", method="xml"
+    ).decode("utf-8")
+
+    # Sign the payload
+    signature = sign_payload(bill_cancl_req_str, private_key)
+
+    # Add signature element
+    signature_element = SubElement(gepg_element, "signature")
+    signature_element.text = signature
+
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+
+    # Return the XML payload as a string
+    return payload_str
+
+
+def parse_bill_cancellation_request_acknowledgement(response_data):
+    """Parse the bill cancellation request acknowledgement received from the Payment Gateway API."""
+
+    try:
+        # Parse the XML response data
+        root = ET.fromstring(response_data)
+
+        # Extract relevant information from the response
+        ack_id = root.find(".//AckId").text
+        req_id = root.find(".//ReqId").text
+        ack_sts_code = root.find(".//AckStsCode").text
+        ack_sts_desc = root.find(".//AckStsDesc").text
+
+        return ack_id, req_id, ack_sts_code, ack_sts_desc
+
+    except Exception as e:
+        # If parsing fails, raise an exception
+        raise Exception(
+            "Error parsing cancellation request acknowledgement: {}".format(str(e))
+        )
+
+
+def parse_bill_cancellation_response(response_data):
+    """Parse the bill cancellation response received from the Payment Gateway API."""
+
+    try:
+        # Parse the XML response data
+        root = ET.fromstring(response_data)
+
+        # Extract relevant information from the response
+        res_id = root.find(".//ResId").text
+        req_id = root.find(".//ReqId").text
+        grp_bill_id = root.find(".//GrpBillId").text
+        res_sts_code = root.find(".//CanclStsCode").text
+        res_sts_desc = root.find(".//CanclStsDesc").text
+
+        return res_id, req_id, grp_bill_id, res_sts_code, res_sts_desc
+
+    except Exception as e:
+        # If parsing fails, raise an exception
+        raise Exception("Error parsing cancellation response: {}".format(str(e)))
+
+
+def compose_bill_cancellation_response_acknowledgement_payload(
+    ack_id, res_id, ack_sts_code, private_key
+):
+    """
+    Compose the XML payload for the bill cancellation acknowledgement based on the provided parameters.
+    """
+
+    # Create the root element
+    gepg_element = Element("Gepg")
+
+    # Create the billCanclReqAck element
+    bill_cancl_req_ack_element = SubElement(gepg_element, "billCanclReqAck")
+
+    # Add AckId to billCanclReqAck
+    ack_id_element = SubElement(bill_cancl_req_ack_element, "AckId")
+    ack_id_element.text = str(ack_id)
+
+    # Add ReqId to billCanclReqAck
+    res_id_element = SubElement(bill_cancl_req_ack_element, "ResId")
+    res_id_element.text = str(res_id)
+
+    # Add AckStsCode to billCanclReqAck
+    ack_sts_code_element = SubElement(bill_cancl_req_ack_element, "AckStsCode")
+    ack_sts_code_element.text = str(ack_sts_code)
+
+    # Convert the XML to a string
+    bill_cancl_req_ack_str = tostring(
+        bill_cancl_req_ack_element, encoding="utf-8", method="xml"
+    ).decode("utf-8")
+
+    # Sign the payload
+    signature = sign_payload(bill_cancl_req_ack_str, private_key)
+
+    # Add signature element
+    signature_element = SubElement(gepg_element, "signature")
+    signature_element.text = signature
+
+    # Convert the whole XML to a string
+    payload_str = tostring(gepg_element, encoding="utf-8", method="xml").decode("utf-8")
+
+    # Return the XML payload as a string
+    return payload_str

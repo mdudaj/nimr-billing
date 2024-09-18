@@ -1,0 +1,35 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %}Generate API Key{% endblock title %}
+
+{% block content %}
+    <div class="ui segment">
+        <h2 class="ui header">Generate API Key</h2>
+        <form class="ui form" method="post">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="ui error message">
+                            <ul class="ui list">
+                                {% for error in field.errors %}
+                                    <li class="item">{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <button class="ui submit button" type="submit">Generate Key</button>
+        </form>
+        {% if key %}
+            <div class="ui message">
+                <div class="header">API Key</div>
+                <p>{{ key }}</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock content %}

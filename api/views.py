@@ -1,61 +1,29 @@
+from django.views.generic import View
+
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from billing.models import (
-    Bill,
-    BillItem,
-    BillingDepartment,
-    Customer,
-    RevenueSourceItem,
-    SystemInfo,
-)
+from rest_framework_api_key.permissions import HasAPIKey
+
+
 from billing.tasks import send_bill_control_number_request
 from billing.utils import generate_request_id
 
-from .serializers import BillSerializer, BillItemSerializer, CustomerSerializer
+from .serializers import BillSerializer
+from .models import BillCntrlNum, BillPayment
 
 
-class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerSerializer
-
-
-class BillViewSet(viewsets.ModelViewSet):
-    queryset = Bill.objects.all()
+class BillSubmissionView(viewsets.ModelViewSet):
+    permission_classes = [HasAPIKey]
     serializer_class = BillSerializer
 
     def create(self, request):
         try:
             bill_data = request.data
-
-            sys_code_data = bill_data.pop("sys_code")
-            sys_info = SystemInfo.objects.get(code=sys_code_data)
-
-            customer_data = bill_data.pop("customer")
-            customer, created = Customer.objects.get_or_create(
-                email=customer_data["email"], defaults=customer_data
-            )
-            if not created:
-                CustomerSerializer(customer).update(customer, customer_data)
-
-            billing_dept = BillingDepartment.objects.get(name="NIMR HQ")
-
-            bill_data["sys_info"] = sys_info
-            bill_data["dept"] = billing_dept
-            bill_data["customer"] = customer
-            bill_data["gen_by"] = customer.get_name()
-            bill_data["appr_by"] = customer.get_name()
             bill_serializer = BillSerializer(data=bill_data)
 
             if bill_serializer.is_valid():
                 bill = bill_serializer.save()
-
-                item_data = bill_data.pop("item")
-                rev_src_itm_data = item_data.pop("rev_src_itm")
-                rev_src_itm = RevenueSourceItem.objects.get(id=rev_src_itm_data["id"])
-                item_data["bill"] = bill
-                item_data["dept"] = billing_dept
-                item_data["rev_src_itm"] = rev_src_itm
-                BillItem.objects.create(**item_data)
 
                 # Generate request id
                 req_id = generate_request_id()
@@ -63,11 +31,78 @@ class BillViewSet(viewsets.ModelViewSet):
                 # Schedule task to send bill control number request
                 send_bill_control_number_request.delay(req_id, bill.bill_id)
 
-                return Response(
-                    {"req_id": req_id, "bill_id": bill.bill_id},
-                    status=status.HTTP_201_CREATED,
-                )
+                response_data = {
+                    "req_id": req_id,
+                    "bill_id": bill.bill_id,
+                    "amount": bill.amt,
+                    "currency": bill.currency,
+                    "message": "Bill submitted successfully",
+                }
+
+                return Response(response_data, status=status.HTTP_201_CREATED)
 
             return Response(bill_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BillCntrNumResponseCallback(View):
+    def post(self, request):
+        try:
+            req_id = request.POST.get("req_id")
+            bill_id = request.POST.get("bill_id")
+            cntrl_num = request.POST.get("cntrl_num")
+            bill_amt = request.POST.get("bill_amt")
+
+            BillCntrlNum.objects.create(
+                req_id=req_id,
+                bill_id=bill_id,
+                cntrl_num=cntrl_num,
+                bill_amt=bill_amt,
+            )
+
+            return Response(
+                {"message": "Bill control number response received"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BillCntrNumPaymentCallback(View):
+    def post(self, request):
+        try:
+            bill_id = request.POST.get("bill_id")
+            psp_code = request.POST.get("psp_code")
+            psp_name = request.POST.get("psp_name")
+            trx_id = request.POST.get("trx_id")
+            payref_id = request.POST.get("payref_id")
+            bill_amt = request.POST.get("bill_amt")
+            paid_amt = request.POST.get("paid_amt")
+            paid_ccy = request.POST.get("paid_ccy")
+            coll_acc_num = request.POST.get("coll_acc_num")
+            trx_date = request.POST.get("trx_date")
+            pay_channel = request.POST.get("pay_channel")
+            pay_cell_num = request.POST.get("pay_cell_num")
+
+            BillPayment.objects.create(
+                bill_id=bill_id,
+                psp_code=psp_code,
+                psp_name=psp_name,
+                trx_id=trx_id,
+                payref_id=payref_id,
+                bill_amt=bill_amt,
+                paid_amt=paid_amt,
+                paid_ccy=paid_ccy,
+                coll_acc_num=coll_acc_num,
+                trx_date=trx_date,
+                pay_channel=pay_channel,
+                pay_cell_num=pay_cell_num,
+            )
+
+            return Response(
+                {"message": "Bill payment response received"},
+                status=status.HTTP_200_OK,
+            )
         except Exception as e:
             return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)

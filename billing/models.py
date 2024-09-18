@@ -1,8 +1,14 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.urls import reverse
+
+# from rest_framework_api_key.models import AbstractAPIKey
+
+
+User = get_user_model()
 
 
 class TimeStampedModel(models.Model):
@@ -17,9 +23,14 @@ class SystemInfo(TimeStampedModel, models.Model):
     """Integrating System's Information."""
 
     code = models.CharField(
-        max_length=50, unique=True, verbose_name="Integrating System Code",
+        max_length=50,
+        unique=True,
+        verbose_name="Integrating System Code",
     )
-    name = models.CharField(max_length=200, verbose_name="Intergating System Name",)
+    name = models.CharField(
+        max_length=200,
+        verbose_name="Intergating System Name",
+    )
     cntrnum_response_callback = models.URLField(
         verbose_name="Bill Control Number Response Callback URL",
         help_text="URL to receive bill control number response from the billing system",
@@ -102,9 +113,13 @@ class Customer(TimeStampedModel, models.Model):
         ordering = ["last_name", "first_name"]
 
     def __str__(self):
+        if self.middle_name is None:
+            return f"{self.first_name} {self.last_name}"
         return f"{self.first_name} {self.middle_name} {self.last_name}"
 
     def get_name(self):
+        if self.middle_name is None:
+            return f"{self.first_name} {self.last_name}"
         return f"{self.first_name} {self.middle_name} {self.last_name}"
 
 
@@ -198,6 +213,7 @@ class RevenueSourceItem(TimeStampedModel, models.Model):
     CURRENCY_CHOICES = (
         ("TZS", _("Tanzanian Shilling")),
         ("USD", _("United States Dollar")),
+        ("EU", _("Euro")),
     )
 
     rev_src = models.ForeignKey(
@@ -355,12 +371,12 @@ class Bill(TimeStampedModel, models.Model):
         verbose_name=_("Currency Code"),
     )
     exch_rate = models.DecimalField(max_digits=32, decimal_places=2, default=1.00)
-    pay_opt = models.PositiveSmallIntegerField(choices=PAY_OPTIONS, default=3)
+    pay_opt = models.PositiveSmallIntegerField(choices=PAY_OPTIONS, default=1)
     pay_plan = models.PositiveSmallIntegerField(
         choices=PAY_PLANS, default=1, verbose_name=_("Payment Plan")
     )
     gen_date = models.DateTimeField(
-        auto_now_add=True,
+        auto_now=True,
         verbose_name=_("Bill Issue Date"),
         help_text="The date when the bill was generated",
     )
@@ -381,7 +397,7 @@ class Bill(TimeStampedModel, models.Model):
     class Meta:
         verbose_name = _("Bill")
         verbose_name_plural = _("Bills")
-        ordering = ["gen_date"]
+        ordering = ["-gen_date"]
 
     def __str__(self):
         return f"Bill {self.bill_id} for {self.customer.get_name()}"
@@ -410,6 +426,30 @@ class Bill(TimeStampedModel, models.Model):
 
     def get_print_url(self):
         return reverse("billing:bill-print", kwargs={"pk": self.pk})
+
+    def is_cancelled(self):
+        return (
+            hasattr(self, "cancelledbill") and self.cancelledbill.status == "CANCELLED"
+        )
+
+    def is_paid(self):
+        return hasattr(self, "payment")
+
+    def is_reconciled(self):
+        return hasattr(self, "paymentreconciliation")
+
+    def get_cntr_num_request_status(self):
+        """Return the status of the control number request."""
+        try:
+            log = PaymentGatewayLog.objects.filter(bill=self, req_type="1").latest(
+                "created_at"
+            )
+            return {"status": log.status, "status_desc": log.status_desc}
+        except PaymentGatewayLog.DoesNotExist:
+            return {
+                "status": "NOT FOUND",
+                "status_desc": "Control Number Request Not Found",
+            }
 
 
 class BillItem(TimeStampedModel, models.Model):
@@ -467,10 +507,10 @@ class BillItem(TimeStampedModel, models.Model):
 class Payment(TimeStampedModel, models.Model):
     """Bill Payment Information."""
 
-    bill = models.ForeignKey(Bill, on_delete=models.CASCADE, verbose_name=_("Bill"))
-    cust_cntr_num = models.BigIntegerField(
-        verbose_name=_("Customer Control Number")
+    bill = models.OneToOneField(
+        Bill, on_delete=models.CASCADE, verbose_name=_("Bill"), primary_key=True
     )
+    cust_cntr_num = models.BigIntegerField(verbose_name=_("Customer Control Number"))
     psp_code = models.CharField(
         max_length=10, verbose_name=_("Payment Service Provider Code")
     )
@@ -533,10 +573,11 @@ class Payment(TimeStampedModel, models.Model):
 class PaymentReconciliation(TimeStampedModel, models.Model):
     """Payment Reconciliation Information."""
 
-    bill = models.ForeignKey(Bill, on_delete=models.CASCADE, verbose_name=_("Bill"))
-    cust_cntr_num = models.BigIntegerField(
-        verbose_name=_("Customer Control Number")
-    )
+    # bill = models.ForeignKey(Bill, on_delete=models.CASCADE, verbose_name=_("Bill"))
+    cust_cntr_num = models.BigIntegerField(verbose_name=_("Customer Control Number"))
+    grp_bill_id = models.CharField(max_length=100, verbose_name=_("Group Bill ID"))
+    bill_id = models.CharField(max_length=100, verbose_name=_("Bill ID"))
+    bill_ctr_num = models.BigIntegerField(verbose_name=_("Bill Control Number"))
     psp_code = models.CharField(
         max_length=10, verbose_name=_("Payment Service Provider Code")
     )
@@ -555,12 +596,15 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
     paid_amt = models.DecimalField(
         max_digits=32, decimal_places=2, verbose_name=_("Amount Paid")
     )
+    bill_pay_opt = models.CharField(
+        max_length=10, verbose_name=_("Bill Payment Option")
+    )
     currency = models.CharField(max_length=3, verbose_name=_("Paid amount currency"))
     coll_acc_num = models.CharField(
         max_length=50, verbose_name=_("Credited Collection Account Number")
     )
     trx_date = models.DateTimeField(verbose_name=_("Transaction Date"))
-    pay_channel = models.CharField(
+    usd_pay_chnl = models.CharField(
         max_length=50,
         verbose_name=_("Payment provider payment channel used to pay the bill"),
     )
@@ -569,6 +613,14 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
         verbose_name=_("Third Party Transaction ID"),
         help_text=_(
             "Third Party Receipt such as Issuing Bank authorization Identification, MNO Receipt, Aggregator Receipt etc."
+        ),
+    )
+    qt_ref_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_(
+            "Unique Identification of quote transaction generated from PSP System"
         ),
     )
     pyr_name = models.CharField(
@@ -586,11 +638,6 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
         null=True,
     )
     pyr_email = models.EmailField(verbose_name=_("Payer Email"), blank=True, null=True)
-    pay_status = models.CharField(
-        max_length=500,
-        verbose_name=_("Payment Reconciliation Status"),
-        help_text=_("Reconciliation Status Description"),
-    )
 
     class Meta:
         verbose_name = _("Payment Reconciliation")
@@ -604,6 +651,15 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
 class PaymentGatewayLog(TimeStampedModel, models.Model):
     """Payment Gateway communication log information."""
 
+    STATUS_CHOICES = (
+        ("PENDING", _("Pending")),
+        ("SUCCESS", _("Success")),
+        ("ERROR", _("Error")),
+        ("RETRYING", _("Retrying")),
+        ("FAILED", _("Failed")),
+        ("CANCELLED", _("Cancelled")),  # Cancelled by the user
+    )
+
     REQ_TYPE_CHOICES = (
         ("1", _("Bill Control Number Request")),
         ("2", _("Bill Control Number Reuse Request")),
@@ -611,18 +667,19 @@ class PaymentGatewayLog(TimeStampedModel, models.Model):
         ("4", _("Bill Control Number Cancellation Request")),
         ("5", _("BILL Payment Notification Request")),
         ("6", _("BILL Payment Reconciliation Request")),
+        ("7", _("BILL Cancellation Request")),
     )
 
     sys_info = models.ForeignKey(
-        SystemInfo, 
-        on_delete=models.CASCADE, 
-        verbose_name=_("Integrating System Information"), 
-        blank=True, 
+        SystemInfo,
+        on_delete=models.SET_NULL,
+        verbose_name=_("Integrating System Information"),
+        blank=True,
         null=True,
-        )
+    )
     bill = models.ForeignKey(
         Bill,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         verbose_name=_("Bill"),
         blank=True,
         null=True,
@@ -630,7 +687,6 @@ class PaymentGatewayLog(TimeStampedModel, models.Model):
     req_id = models.CharField(
         max_length=100,
         verbose_name=_("Request ID"),
-        unique=True,
     )
     req_type = models.CharField(
         max_length=1,
@@ -638,41 +694,106 @@ class PaymentGatewayLog(TimeStampedModel, models.Model):
         verbose_name=_("Request Type"),
     )
     status = models.CharField(
-        max_length=50,
+        max_length=10,
+        choices=STATUS_CHOICES,
         verbose_name=_("Request Status"),
+        default="PENDING",  # Default to PENDING when the log is created
     )
-    status_desc = models.CharField(
-        max_length=255,
+    status_desc = models.TextField(
         verbose_name=_("Request Status Description"),
+        blank=True,
+        null=True,
     )
     req_data = models.JSONField(
         verbose_name=_("Request Data"),
         blank=True,
-        null=True,
+        default=dict,
     )
     req_ack = models.JSONField(
         verbose_name=_("Request Acknowledgement"),
         blank=True,
-        null=True,
+        default=dict,
     )
     res_data = models.JSONField(
         verbose_name=_("Response Data"),
         blank=True,
-        null=True,
+        default=dict,
     )
     res_ack = models.JSONField(
         verbose_name=_("Response Acknowledgement"),
         blank=True,
-        null=True,
+        default=dict,
     )
 
     class Meta:
         verbose_name = _("Payment Gateway Log")
         verbose_name_plural = _("Payment Gateway Logs")
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["req_id"], name="req_id_idx"),
+            models.Index(fields=["bill"], name="bill_idx"),
+            models.Index(fields=["status"], name="status_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["req_id", "req_type"],
+                name="unique_request_id",
+            ),
+        ]
 
     def __str__(self):
-        return (
-            f"{self.req_id} - {self.get_req_type_display()} - {self.bill.bill_id}: {self.status} - {self.status_desc}"
-            
-        )
+        return f"{self.req_id} - {self.get_req_type_display()} - {self.status} - {self.status_desc}"
+
+    def control_number_request_status(self):
+        """Return the status of the control number request."""
+        if self.req_type == "1":
+            return self.status
+
+
+class CancelledBill(TimeStampedModel, models.Model):
+    """Cancelled Bill Information."""
+
+    CANCEL_STATUS = (
+        ("PENDING", _("Pending")),
+        ("CANCELLED", _("Cancelled")),
+        ("FAILED", _("Failed")),
+        ("RECREATED", _("Recreated")),
+    )
+
+    bill = models.OneToOneField(
+        Bill, on_delete=models.CASCADE, verbose_name=_("Bill"), primary_key=True
+    )
+    reason = models.TextField(
+        verbose_name=_("Cancellation Reason"),
+        help_text="Reason for cancelling the bill",
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=CANCEL_STATUS,
+        verbose_name=_("Cancellation Status"),
+        default="PENDING",
+    )
+    gen_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="cancelled_bill_generated_by",
+        verbose_name=_("Cancelled By"),
+    )
+    appr_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="cancelled_bill_approved_by",
+        verbose_name=_("Approved By"),
+    )
+
+    class Meta:
+        verbose_name = _("Cancelled Bill")
+        verbose_name_plural = _("Cancelled Bills")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Cancelled Bill - {self.bill.bill_id}"

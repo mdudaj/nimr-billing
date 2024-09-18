@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third party apps
     "rest_framework",
+    "rest_framework_api_key",
     "jquery",
     "djangoformsetjs",
     # Local apps
@@ -257,10 +258,12 @@ GEPG_URL = os.environ.get("GEPG_URL")
 # GEPG API Endpoints
 BILL_SUBMISSION = os.environ.get("BILL_SUBMISSION")
 RECONCILIATION_REQUEST = os.environ.get("RECONCILIATION_REQUEST")
+BILL_CANCELATION = os.environ.get("BILL_CANCELLATION")
 
 # GEPG API Endpoints URL
 BILL_SUBMISSION_URL = f"{GEPG_URL}{BILL_SUBMISSION}"
 RECONCILIATION_REQUEST_URL = f"{GEPG_URL}{RECONCILIATION_REQUEST}"
+BILL_CANCELATION_URL = f"{GEPG_URL}{BILL_CANCELATION}"
 
 # GEPG Bill Parameters
 SP_GRP_CODE = os.environ.get("SP_GRP_CODE")

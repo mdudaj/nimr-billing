@@ -15,6 +15,22 @@
             </div>
         </a>
     </div>
+
+    <!-- Messages Block -->
+    {% if messages %}
+    <div class="ui floating message">
+        <i class="close icon"></i>
+        <div class="ui middle aligned animated divided list">
+            {% for message in messages %}
+            <div class="item {{ message.tags }}">
+                <p>{{ message }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <!-- End of Messages Block -->
+
     <table class="ui basic striped table">
         <thead>
             <tr>
@@ -24,46 +40,67 @@
                 <th>Description</th>
                 <th>Amount</th>
                 <th>Control Number</th>
-                <th>Actions</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
             {% for bill in bill_list %}
-            <tr>
-                <td>{{ bill.bill_id }}</td>
+            <tr data-bill-id="{{ bill.id }}">
+                <td><a href="{% url 'billing:bill-detail' bill.id %}">{{ bill.bill_id }}</a></td>
                 <td>{{ bill.gen_date }}</td>
                 <td>{{ bill.customer.get_name }}</td>
                 <td>{{ bill.description }}</td>
                 <td><small>{{ bill.currency }}</small> {{ bill.amt }}</td>
+        
                 {% if bill.cntr_num %}
                 <td>{{ bill.cntr_num }}</td>
                 {% else %}
-                <td id="cntrnum">Still working on it ...</td>
+                <td id="cntrnum-{{ bill.id }}">Still working on it ...</td>
                 {% endif %}
-                <td class="single line">
-                    <a href="{% url 'billing:bill-detail' bill.pk %}" class="ui icon large button primary"><i
-                            class="icon info"></i></a>
-                    <a href="{% url 'billing:bill-delete' bill.pk %}" class="ui icon large button negative"><i
-                            class="icon trash"></i></a>
-                </td>
+        
+                {% if bill.is_paid %}
+                <td><div class="ui green label">Paid</div></td>
+                {% else %}
+                <td><div class="ui red label">Unpaid</div></td>
+                {% endif %}
             </tr>
             {% endfor %}
-        </tbody>
+        </tbody>        
     </table>
 </div>
 {% endblock content %}
 
 {% block extrascript %}
 <script>
-    $(document).ready(function () {
-        const cntrnum = $('#cntrnum');
-        let dots = ['.', '..', '...'];
-        let index = 0;
+$(document).ready(function () {
+// Iterate only over the rows that have no control number (bills where control number is missing)
+$('tr[data-bill-id]').each(function () {
+        const billId = $(this).data('bill-id');
+        const cntrnum = $('#cntrnum-' + billId);
 
-        setInterval(function () {
-            cntrnum.text('Still working on it' + dots[index]);
-            index = (index + 1) % dots.length;
-        }, 500); // Change the interval (in milliseconds) as needed
+        if (cntrnum.length) {  // Ensure this bill has a placeholder for control number
+            const intervalId = setInterval(function () {
+                // Make an AJAX request to check for task status
+                $.ajax({
+                    url: "{% url 'billing:check-control-number-request-status' 0 %}".replace('0', billId),
+                    method: 'GET',
+                    success: function (data) {
+                        if (data.status === 'ERROR') {
+                            cntrnum.html('<i class="exclamation triangle icon"></i> ' + data.message);
+                        } else if (data.status === 'SUCCESS') {
+                            cntrnum.text(data.control_number);
+                            clearInterval(intervalId); // Stop polling when success
+                        } else {
+                            cntrnum.text('Still working on it...');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        cntrnum.html('<i class="exclamation triangle icon"></i> Error occurred: ' + error);
+                    }
+                });
+            }, 5000); // Poll every 5 seconds
+        }
     });
+});
 </script>
 {% endblock extrascript %}

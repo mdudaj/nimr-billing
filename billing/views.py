@@ -1,7 +1,11 @@
 import logging
+import requests
 from django.db import transaction
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -13,8 +17,8 @@ from django.views.generic import (
     TemplateView,
     ListView,
     DetailView,
+    View,
 )
-from django.shortcuts import render
 
 
 from .models import (
@@ -27,6 +31,9 @@ from .models import (
     BillItem,
     PaymentGatewayLog,
     SystemInfo,
+    Payment,
+    PaymentReconciliation,
+    CancelledBill,
 )
 from .forms import (
     CustomerForm,
@@ -37,20 +44,27 @@ from .forms import (
     BillForm,
     BillItemInlineFormSet,
     SystemInfoForm,
+    PaymentReconciliationForm,
 )
 from .utils import (
     compose_acknowledgement_response_payload,
     compose_payment_response_acknowledgement_payload,
+    compose_bill_reconciliation_response_acknowledgement_payload,
+    compose_bill_cancellation_payload,
+    compose_bill_cancellation_response_acknowledgement_payload,
     generate_request_id,
     load_private_key,
     parse_bill_control_number_response,
     parse_payment_response,
+    parse_bill_reconciliation_response,
+    parse_bill_cancellation_response,
     xml_to_dict,
 )
 from .tasks import (
     send_bill_control_number_request,
     process_bill_control_number_response,
     process_bill_payment_response,
+    send_bill_reconciliation_request,
     process_bill_reconciliation_response,
 )
 
@@ -355,19 +369,10 @@ class BillListView(LoginRequiredMixin, ListView):
     model = Bill
     template_name = "billing/bill/bill_list.html"
 
-
-class GetBillControlNumberView(LoginRequiredMixin, View):
-    # Update template when a control number becomes available
-    def get(self, request, *args, **kwargs):
-        bill_id = kwargs.get("bill_id")
-        try:
-            bill = Bill.objects.get(bill_id=bill_id)
-            if bill.cntr_num:
-                return JsonResponse({"control_number": bill.cntr_num})
-            else:
-                return JsonResponse({"control_number": "Still processing ..."})
-        except Bill.DoesNotExist:
-            return JsonResponse({"Error": "Bill not found"}, status=404)
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #     queryset = [bill for bill in queryset if not bill.is_cancelled]
+    #     return queryset
 
 
 class BillDetailView(LoginRequiredMixin, DetailView):
@@ -393,6 +398,12 @@ class BillCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         context = self.get_context_data()
         bill_items = context["bill_items"]
+
+        # Check if there is at least one valid bill item
+        if not bill_items.is_valid() or not any(item.is_valid() for item in bill_items):
+            form.add_error(None, "At least one bill item is required.")
+            return self.form_invalid(form)
+
         with transaction.atomic():
             self.object = form.save()
             if bill_items.is_valid():
@@ -405,6 +416,20 @@ class BillCreateView(LoginRequiredMixin, CreateView):
                 self.object.eqv_amt = self.object.amt
                 self.object.min_amt = self.object.amt
                 self.object.max_amt = self.object.amt
+                self.object.currency = (
+                    self.object.billitem_set.first().rev_src_itm.currency
+                )
+
+                # Validate the currency
+                # if self.object.currency not in ["TZS", "USD"]:
+                #     form.add_error("currency", "Invalid currency selected")
+                #     messages.error(
+                #         self.request,
+                #         f"Invalid currency selected: {self.object.currency}. Please select either TZS or USD.",
+                #     )
+                #     return self.form_invalid(form)
+
+                # Save the bill object
                 self.object.save()
 
                 # Generate a unique request ID
@@ -412,6 +437,16 @@ class BillCreateView(LoginRequiredMixin, CreateView):
 
                 # Send the bill control number request to the GEPG API
                 send_bill_control_number_request.delay(req_id, self.object.bill_id)
+
+                # Notify the user that the bill has been successfully created
+                messages.success(
+                    self.request,
+                    (
+                        f"Bill {self.object.bill_id} has been successfully created. "
+                        f"Please wait for the control number to be generated. "
+                        f"Refresh the page to check the status."
+                    ),
+                )
 
         return super().form_valid(form)
 
@@ -441,6 +476,12 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         context = self.get_context_data()
         bill_items = context["bill_items"]
+
+        # Check if there is at least one valid bill item
+        if not bill_items.is_valid() or not any(item.is_valid() for item in bill_items):
+            form.add_error(None, "At least one bill item is required.")
+            return self.form_invalid(form)
+
         with transaction.atomic():
             self.object = form.save()
             if bill_items.is_valid():
@@ -453,7 +494,37 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
                 self.object.eqv_amt = self.object.amt
                 self.object.min_amt = self.object.amt
                 self.object.max_amt = self.object.amt
+                self.object.currency = (
+                    self.object.billitem_set.first().rev_src_itm.currency
+                )
+
+                # Validate the currency
+                if self.object.currency not in ["TZS", "USD"]:
+                    form.add_error("currency", "Invalid currency selected")
+                    return self.form_invalid(form)
+
+                # Save the bill object
                 self.object.save()
+
+                # Check if cancelled bill exists
+                if CancelledBill.objects.filter(bill=self.object).exists():
+                    # Update the status of the cancelled bill to recreated
+                    CancelledBill.objects.filter(bill=self.object).update(
+                        status="RECREATED"
+                    )
+
+                # Generate a unique request ID
+                req_id = generate_request_id()
+
+                # Send the bill control number request to the GEPG API
+                send_bill_control_number_request.delay(req_id, self.object.bill_id)
+
+                # Notify the user that the bill has been successfully updated
+                messages.success(
+                    self.request,
+                    f"Bill {self.object.bill_id} has been successfully updated. New request {req_id} sent.",
+                )
+
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -463,10 +534,49 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class BillDeleteView(LoginRequiredMixin, DeleteView):
-    # TODO: This view should be updated to handle the cancellation of a bill instead of deleting it
     model = Bill
     template_name = "billing/bill/bill_confirm_delete.html"
     success_url = reverse_lazy("billing:bill-list")
+
+
+class PaymentReconciliationListView(LoginRequiredMixin, ListView):
+    model = PaymentReconciliation
+    template_name = "billing/payment_reconciliation/payment_reconciliation_list.html"
+
+
+class PaymentReconciliationDetailView(LoginRequiredMixin, DetailView):
+    model = PaymentReconciliation
+    template_name = "billing/payment_reconciliation/payment_reconciliation_detail.html"
+
+
+class PaymentReconciliationListView(LoginRequiredMixin, CreateView):
+    model = PaymentReconciliation
+    form_class = PaymentReconciliationForm
+    template_name = "billing/payment_reconciliation/payment_reconciliation_form.html"
+    success_url = reverse_lazy("billing:payment-reconciliation-list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_update"] = False
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        trx_date = form.cleaned_data.get("trx_date").strftime("%Y-%m-%d")
+
+        # Generate a unique request ID
+        req_id = generate_request_id()
+
+        # Send the bill reconciliation request to the GEPG API asynchronously
+        send_bill_reconciliation_request.delay(
+            req_id, settings.SP_GRP_CODE, settings.SP_SYS_ID, trx_date
+        )
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        context = self.get_context_data()
+        return self.render_to_response(self.get_context_data(form=form))
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -501,9 +611,8 @@ class BillControlNumberResponseCallbackView(View):
             ) = parse_bill_control_number_response(response_data)
 
             # Update the payment gateway log with the response data
-            pg_log = PaymentGatewayLog.objects.filter(req_id=req_id).update(
-                res_data=xml_to_dict(response_data)
-            )
+            pg_log = PaymentGatewayLog.objects.get(req_id=req_id)
+            pg_log.res_data = xml_to_dict(response_data)
 
             # Compose an acknowledgement response payload
             private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
@@ -655,11 +764,392 @@ class BillControlNumberReconciliationCallbackView(View):
     def post(self, request):
         # Process the bill reconciliation information received from the GEPG API
 
-        # Extract the bill reconciliation information from the request
-        response_data = request.body.decode("utf-8")
+        try:
+            # Extract the bill reconciliation information from the response data
+            response_data = request.body.decode("utf-8")
 
-        # Process the bill reconciliation information asynchronously
-        process_bill_reconciliation_response.delay(response_data)
+            # Log the incoming request data
+            logger.info(
+                f"Received reconciliation callback request with data: {response_data}"
+            )
 
-        # Return an HTTP response
-        return HttpResponseRedirect("/")
+            # Parse the bill reconciliation information
+            (
+                res_id,
+                req_id,
+                pay_sts_code,
+                pay_sts_desc,
+                pmt_trx_dtls,
+            ) = parse_bill_reconciliation_response(response_data)
+
+            # Update the payment gateway log with the response data
+            pg_log = PaymentGatewayLog.objects.get(req_id=req_id)
+            pg_log.res_data = xml_to_dict(response_data)
+
+            # Process the bill reconciliation information asynchronously
+            logger.info(
+                f"Schedule processing of reconciliation response data: {response_data}"
+            )
+            process_bill_reconciliation_response.delay(
+                res_id,
+                req_id,
+                pay_sts_code,
+                pay_sts_desc,
+                pmt_trx_dtls,
+            )
+
+            # Compose an acknowledgement response payload
+            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+            ack_payload = compose_bill_reconciliation_response_acknowledgement_payload(
+                ack_id=req_id,
+                res_id=res_id,
+                ack_sts_code=7101,
+                private_key=private_key,
+            )
+
+            # Log the acknowledgement payload
+            logger.info(f"Acknowledgement payload: {ack_payload}")
+
+            # Update the payment gateway log with the acknowledgement payload
+            pg_log.res_ack = xml_to_dict(ack_payload)
+
+            # Return an HTTP response with the acknowledgement payload
+            return HttpResponse(ack_payload, content_type="text/xml", status=200)
+        except Exception as e:
+            # Log the error
+            logger.error(f"An error occurred: {str(e)}")
+
+            # Return an HTTP response
+            return HttpResponseRedirect(f"ERROR {str(e)}", status=500)
+
+
+class BillCancellationCreateView(LoginRequiredMixin, CreateView):
+    model = CancelledBill
+    fields = ["bill", "reason"]
+    template_name = "billing/bill_cancellation/bill_cancellation_form.html"
+    success_url = reverse_lazy("billing:bill-list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_update"] = False
+        return context
+
+    @transaction.atomic
+    def form_valid(self, form):
+        context = self.get_context_data()
+        cancl_bill_obj = form.save(commit=False)
+        cancl_bill_obj.gen_by = self.request.user
+        cancl_bill_obj.appr_by = self.request.user
+        cancl_bill_obj.save()
+
+        # Generate a unique request ID
+        req_id = generate_request_id()
+
+        url = settings.BILL_CANCELATION_URL
+
+        headers = {
+            "Content-Type": "application/xml",
+            "Gepg-Com": settings.GEPG_COM,
+            "Gepg-Code": settings.GEPG_CODE,
+            "Gepg-Alg": settings.GEPG_ALG,
+        }
+
+        # Try to load the private key and handle potential errors
+        try:
+            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+        except Exception as e:
+            logger.error(f"Failed to load private key: {e}")
+            messages.error(self.request, "Internal error occurred. Please try again.")
+            return redirect(self.success_url)
+
+        # Compose the bill cancellation payload
+        payload = compose_bill_cancellation_payload(
+            req_id,
+            cancl_bill_obj,
+            settings.SP_GRP_CODE,
+            settings.SP_SYS_ID,
+            private_key,
+        )
+
+        # Log the bill cancellation request
+        pg_log = PaymentGatewayLog.objects.create(
+            bill=cancl_bill_obj.bill,
+            req_id=req_id,
+            req_type="7",
+            req_data=payload,
+        )
+
+        # Send the bill cancellation request to the GEPG API and handle potential errors
+        try:
+            response = requests.post(url, data=payload, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to send bill cancellation request: {e}"
+            pg_log.save()
+            logger.error(f"Failed to send bill cancellation request: {e}")
+            messages.error(self.request, "Internal error occurred. Please try again.")
+            return redirect(self.success_url)
+
+        # Parse the response data and handle potential errors
+        try:
+            res_id, req_id, bill_id, res_sts_code, res_sts_desc = (
+                parse_bill_cancellation_response(response.text)
+            )
+        except Exception as e:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to parse bill cancellation response: {e}"
+            pg_log.save()
+            logger.error(f"Failed to parse bill cancellation response: {e}")
+            messages.error(self.request, "Internal error occurred. Please try again.")
+            return redirect(self.success_url)
+
+        if res_sts_code == "7283":
+            # Update the status of the bill to cancelled, and clear the control number
+            cancl_bill_obj.status = "CANCELLED"
+            cancl_bill_obj.save()
+
+            Bill.objects.filter(bill_id=cancl_bill_obj.bill.bill_id).update(
+                cntr_num=None
+            )
+
+            # Update the status of the payment gateway log
+            pg_log.status = "SUCCESS"
+            pg_log.status_desc = res_sts_desc
+            pg_log.res_data = xml_to_dict(response.text)
+            pg_log.save()
+            messages.success(
+                self.request,
+                f"Bill {cancl_bill_obj.bill.bill_id} has been successfully cancelled.",
+            )
+
+            # Compose an acknowledgement response payload
+            ack_payload = compose_bill_cancellation_response_acknowledgement_payload(
+                ack_id=req_id,
+                res_id=res_id,
+                ack_sts_code="7101",
+                private_key=private_key,
+            )
+
+            # Log the acknowledgement payload
+            pg_log.res_ack = xml_to_dict(ack_payload)
+            pg_log.save()
+
+            try:
+                requests.post(
+                    url, data=ack_payload, headers={"Content-Type": "application/xml"}
+                )
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to send acknowledgement: {e}")
+                messages.error(
+                    self.request,
+                    f"Failed to send acknowledgement for bill {cancl_bill_obj.bill.bill_id}: {e}",
+                )
+                return redirect(self.success_url)
+        else:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = res_sts_desc
+            pg_log.res_data = xml_to_dict(response.text)
+            pg_log.save()
+            messages.error(
+                self.request,
+                f"Failed to cancel bill {cancl_bill_obj.bill.bill_id}: {res_sts_desc}",
+            )
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        context = self.get_context_data()
+        return self.render_to_response(self.get_context_data(form=form))
+
+
+class BillCancellationUpdateView(LoginRequiredMixin, UpdateView):
+    model = CancelledBill
+    fields = ["bill", "reason"]
+    template_name = "billing/bill_cancellation/bill_cancellation_form.html"
+    success_url = reverse_lazy("billing:bill-list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_update"] = True
+        return context
+
+    @transaction.atomic
+    def form_valid(self, form):
+        context = self.get_context_data()
+        cancl_bill_obj = form.save(commit=False)
+        cancl_bill_obj.gen_by = self.request.user
+        cancl_bill_obj.appr_by = self.request.user
+        cancl_bill_obj.save()
+
+        # Generate a unique request ID
+        req_id = generate_request_id()
+
+        url = settings.BILL_CANCELATION_URL
+
+        headers = {
+            "Content-Type": "application/xml",
+            "Gepg-Com": settings.GEPG_COM,
+            "Gepg-Code": settings.GEPG_CODE,
+            "Gepg-Alg": settings.GEPG_ALG,
+        }
+
+        # Try to load the private key and handle potential errors
+        try:
+            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+        except Exception as e:
+            logger.error(f"Failed to load private key: {e}")
+            messages.error(self.request, "Internal error occurred. Please try again.")
+            return redirect(self.success_url)
+
+        # Compose the bill cancellation payload
+        payload = compose_bill_cancellation_payload(
+            req_id,
+            cancl_bill_obj,
+            settings.SP_GRP_CODE,
+            settings.SP_SYS_ID,
+            private_key,
+        )
+
+        # Log the bill cancellation request
+        pg_log = PaymentGatewayLog.objects.create(
+            bill=cancl_bill_obj.bill,
+            req_id=req_id,
+            req_type="7",
+            req_data=payload,
+        )
+
+        # Send the bill cancellation request to the GEPG API and handle potential errors
+        try:
+            response = requests.post(url, data=payload, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to send bill cancellation request: {e}"
+            pg_log.save()
+            logger.error(f"Failed to send bill cancellation request: {e}")
+            messages.error(self.request, "Internal error occurred. Please try again.")
+            return redirect(self.success_url)
+
+        # Parse the response data and handle potential errors
+        try:
+            res_id, req_id, bill_id, res_sts_code, res_sts_desc = (
+                parse_bill_cancellation_response(response.text)
+            )
+        except Exception as e:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to parse bill cancellation response: {e}"
+            pg_log.save()
+            logger.error(f"Failed to parse bill cancellation response: {e}")
+            messages.error(self.request, "Internal error occurred. Please try again.")
+            return redirect(self.success_url)
+
+        if res_sts_code == "7283":
+            # Update the status of the bill to cancelled, and clear the control number
+            cancl_bill_obj.status = "CANCELLED"
+            cancl_bill_obj.save()
+
+            Bill.objects.filter(bill_id=cancl_bill_obj.bill.bill_id).update(
+                cntr_num=None
+            )
+
+            # Update the status of the payment gateway log
+            pg_log.status = "SUCCESS"
+            pg_log.status_desc = res_sts_desc
+            pg_log.res_data = xml_to_dict(response.text)
+            pg_log.save()
+            messages.success(
+                self.request,
+                f"Bill {cancl_bill_obj.bill.bill_id} has been successfully cancelled.",
+            )
+
+            # Compose an acknowledgement response payload
+            ack_payload = compose_bill_cancellation_response_acknowledgement_payload(
+                ack_id=req_id,
+                res_id=res_id,
+                ack_sts_code="7101",
+                private_key=private_key,
+            )
+
+            # Log the acknowledgement payload
+            pg_log.res_ack = xml_to_dict(ack_payload)
+            pg_log.save()
+
+            try:
+                requests.post(
+                    url, data=ack_payload, headers={"Content-Type": "application/xml"}
+                )
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to send acknowledgement: {e}")
+                messages.error(
+                    self.request,
+                    f"Failed to send acknowledgement for bill {cancl_bill_obj.bill.bill_id}: {e}",
+                )
+                return redirect(self.success_url)
+        else:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = res_sts_desc
+            pg_log.res_data = xml_to_dict(response.text)
+            pg_log.save()
+            messages.error(
+                self.request,
+                f"Failed to cancel bill {cancl_bill_obj.bill.bill_id}: {res_sts_desc}",
+            )
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        context = self.get_context_data()
+        return self.render_to_response(self.get_context_data(form=form))
+
+
+class BillCancellationListView(LoginRequiredMixin, ListView):
+    model = CancelledBill
+    template_name = "billing/bill_cancellation/bill_cancellation_list.html"
+    context_object_name = "cancelled_bills"
+
+
+class BillCancellationDetailView(LoginRequiredMixin, DetailView):
+    model = CancelledBill
+    template_name = "billing/bill_cancellation/bill_cancellation_detail.html"
+
+
+class BillCancellationDeleteView(LoginRequiredMixin, DeleteView):
+    model = CancelledBill
+    template_name = "billing/bill_cancellation/bill_cancellation_confirm_delete.html"
+    success_url = reverse_lazy("billing:bill-cancellation-list")
+
+
+class PaymentListView(LoginRequiredMixin, ListView):
+    model = Payment
+    template_name = "billing/payment/payment_list.html"
+
+
+class PaymentDetailView(LoginRequiredMixin, DetailView):
+    model = Payment
+    template_name = "billing/payment/payment_detail.html"
+
+
+def check_control_number_request_status(request, bill_id):
+    """Check the status of a bill control number request."""
+    log = PaymentGatewayLog.objects.filter(bill_id=bill_id, req_type="1").first()
+    if log is None:
+        # Handle case where log entry doesn't exist
+        return JsonResponse(
+            {"status": "NOT_FOUND", "message": "No record found for this bill."},
+            status=404,
+        )
+
+    if log.status == "ERROR":
+        return JsonResponse({"status": "ERROR", "message": log.status_desc})
+    elif log.status == "SUCCESS":
+        bill = Bill.objects.get(bill_id=bill_id)
+        return JsonResponse(
+            {
+                "status": log.status,
+                "message": log.status_desc,
+                "control_number": bill.cust_cntr_num,
+            }
+        )
+    else:
+        return JsonResponse({"status": log.status, "message": log.status_desc})
