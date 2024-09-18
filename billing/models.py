@@ -371,7 +371,7 @@ class Bill(TimeStampedModel, models.Model):
         verbose_name=_("Currency Code"),
     )
     exch_rate = models.DecimalField(max_digits=32, decimal_places=2, default=1.00)
-    pay_opt = models.PositiveSmallIntegerField(choices=PAY_OPTIONS, default=1)
+    pay_opt = models.PositiveSmallIntegerField(choices=PAY_OPTIONS, default=3)
     pay_plan = models.PositiveSmallIntegerField(
         choices=PAY_PLANS, default=1, verbose_name=_("Payment Plan")
     )
