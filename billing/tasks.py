@@ -316,7 +316,7 @@ def process_bill_payment_response(
         )
 
         # Create a Payment object to store the payment response details
-        payment = Payment.objects.create(
+        payment = Payment.objects.create_or_update(
             bill=bill,
             cust_cntr_num=cust_cntr_num,
             psp_code=psp_code,
