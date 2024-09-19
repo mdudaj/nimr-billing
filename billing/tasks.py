@@ -72,12 +72,17 @@ def send_bill_control_number_request(self, req_id, bill_id):
         )
 
         # Create a PaymentGatewayLog object to store the request and response data
-        pg_log = PaymentGatewayLog.objects.create(
+        pg_log, created = PaymentGatewayLog.objects.get_or_create(
             bill=bill,
             req_id=req_id,
             req_type="1",
-            req_data=xml_to_dict(payload),
+            defaults={"req_data": xml_to_dict(payload)},
         )
+
+        if not created:
+            logger.info(
+                f"PaymentGatewayLog entry for req_id: {req_id}, req_type: '1' already exists. Skipping creation."
+            )
 
         # Send the bill control number request to the GEPG API
         logger.info(f"Sending bill control number request: {payload}")
@@ -315,8 +320,46 @@ def process_bill_payment_response(
             trx_date.isoformat() if isinstance(trx_date, datetime) else trx_date
         )
 
+        # Create PaymentGatewayLog object to store the rrecived data
+        pg_log, created = PaymentGatewayLog.objects.get_or_create(
+            req_id=req_id,
+            req_type="5",
+            status="PENDING",
+            status_desc="Payment response received. Processing...",
+            defaults={
+                "req_data": {
+                    "bill_id": bill_id,
+                    "cntr_num": cust_cntr_num,
+                    "psp_code": psp_code,
+                    "psp_name": psp_name,
+                    "trx_id": trx_id,
+                    "payref_id": payref_id,
+                    "bill_amt": bill_amt,
+                    "paid_amt": paid_amt,
+                    "paid_ccy": paid_ccy,
+                    "coll_acc_num": coll_acc_num,
+                    "trx_date": trx_date_str,
+                    "pay_channel": pay_channel,
+                    "trdpty_trx_id": trdpty_trx_id,
+                    "pyr_cell_num": pyr_cell_num,
+                }
+            },
+        )
+
+        if not created:
+            logger.info(
+                f"PaymentGatewayLog entry for req_id: {req_id}, req_type: '5' already exists. Skipping creation."
+            )
+
+        # Check if the payment with the same control number has already been processed to avoid reposting
+        if Payment.objects.filter(bill=bill, cust_cntr_num=cust_cntr_num).exists():
+            logger.warning(
+                f"Duplicate payment detected for control number: {cust_cntr_num}. Skipping processing..."
+            )
+            return
+
         # Create a Payment object to store the payment response details
-        payment = Payment.objects.create_or_update(
+        payment = Payment.objects.create(
             bill=bill,
             cust_cntr_num=cust_cntr_num,
             psp_code=psp_code,
@@ -333,29 +376,6 @@ def process_bill_payment_response(
             pyr_cell_num=pyr_cell_num,
             pyr_email=pyr_email,
             pyr_name=pyr_name,
-        )
-
-        # Create a PaymentGatewayLog object to store the request and response data
-        PaymentGatewayLog.objects.create(
-            req_id=req_id,
-            req_type="5",
-            req_data={
-                "bill_id": bill_id,
-                "cntr_num": cust_cntr_num,
-                "psp_code": psp_code,
-                "psp_name": psp_name,
-                "trx_id": trx_id,
-                "payref_id": payref_id,
-                "bill_amt": bill_amt,
-                "paid_amt": paid_amt,
-                "paid_ccy": paid_ccy,
-                "coll_acc_num": coll_acc_num,
-                "trx_date": trx_date_str,
-                "pay_channel": pay_channel,
-                "pyr_cell_num": pyr_cell_num,
-            },
-            status="PENDING",
-            status_desc="Payment response received. Processing...",
         )
 
         # Check if bill control number request came from external system

@@ -498,10 +498,10 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
                     self.object.billitem_set.first().rev_src_itm.currency
                 )
 
-                # Validate the currency
-                if self.object.currency not in ["TZS", "USD"]:
-                    form.add_error("currency", "Invalid currency selected")
-                    return self.form_invalid(form)
+                # # Validate the currency
+                # if self.object.currency not in ["TZS", "USD"]:
+                #     form.add_error("currency", "Invalid currency selected")
+                #     return self.form_invalid(form)
 
                 # Save the bill object
                 self.object.save()
@@ -1132,7 +1132,9 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
 
 def check_control_number_request_status(request, bill_id):
     """Check the status of a bill control number request."""
-    log = PaymentGatewayLog.objects.filter(bill_id=bill_id, req_type="1").first()
+    log = PaymentGatewayLog.objects.filter(bill_id=bill_id, req_type="1").latest(
+        "created_at"
+    )
     if log is None:
         # Handle case where log entry doesn't exist
         return JsonResponse(

@@ -404,14 +404,15 @@ class Bill(TimeStampedModel, models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk:
+            # Set the bill generation date to the current date
             self.gen_date = timezone.now()
+
+            # Generate the bill ID using the department code and the generation date
+            self.bill_id = f"{self.dept.code}{self.gen_date.strftime('%Y%m%d%H%M%S')}"
+            self.grp_bill_id = self.bill_id
 
         # Set the bill expiry date to 30 days from the generation date
         self.expr_date = self.gen_date + timezone.timedelta(days=30)
-
-        # Bill ID and Group Bill ID
-        self.bill_id = f"{self.dept.code}{self.gen_date.strftime('%Y%m%d%H%M%S')}"
-        self.grp_bill_id = self.bill_id
 
         super(Bill, self).save(*args, **kwargs)
 
@@ -565,6 +566,12 @@ class Payment(TimeStampedModel, models.Model):
         verbose_name = _("Payment")
         verbose_name_plural = _("Payments")
         ordering = ["trx_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cust_cntr_num", "bill"],
+                name="unique_payment",
+            ),
+        ]
 
     def __str__(self):
         return f"Payment for Bill ID - {self.bill.bill_id}, Control Number - {self.bill.cntr_num} paid. Amount - {self.paid_amt}"
