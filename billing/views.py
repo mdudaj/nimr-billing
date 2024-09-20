@@ -4,6 +4,7 @@ from django.db import transaction
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
@@ -615,7 +616,9 @@ class BillControlNumberResponseCallbackView(View):
             pg_log.res_data = xml_to_dict(response_data)
 
             # Compose an acknowledgement response payload
-            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+            private_key = load_private_key(
+                settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+            )
             ack_payload = compose_acknowledgement_response_payload(
                 ack_id=req_id,
                 res_id=res_id,
@@ -693,17 +696,26 @@ class BillControlNumberPaymentCallbackView(View):
 
             # Create a payment gateway log entry
             bill = Bill.objects.get(bill_id=bill_id)
-            pg_log = PaymentGatewayLog.objects.create(
+            pg_log, created = PaymentGatewayLog.objects.get_or_create(
                 sys_info=bill.sys_info,
                 bill=Bill.objects.get(bill_id=bill_id),
                 req_id=req_id,
                 req_type="5",
-                req_data=xml_to_dict(response_data),
+                status="PENDING",
+                status_desc="Payment response received. Processing...",
+                defaults={"req_data": xml_to_dict(response_data)},
             )
+
+            if not created:
+                logger.info(
+                    f"PaymentGatewayLog entry for req_id: {req_id}, req_type: '5' already exists. Skipping creation."
+                )
 
             # Compose an acknowledgement response payload
             ack_id = generate_request_id()
-            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+            private_key = load_private_key(
+                settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+            )
             ack_payload = compose_payment_response_acknowledgement_payload(
                 ack_id=ack_id,
                 req_id=req_id,
@@ -713,7 +725,7 @@ class BillControlNumberPaymentCallbackView(View):
 
             # Process the bill payment information asynchronously
             logger.info(
-                f"Schedule processing of payment response data: {response_data}"
+                f"Schedule request {req_id} - {bill_id} processing of payment response data: {response_data}"
             )
             process_bill_payment_response.delay(
                 req_id,
@@ -736,7 +748,7 @@ class BillControlNumberPaymentCallbackView(View):
             )
 
             # Log the acknowledgement payload
-            logger.info(f"Acknowledgement payload: {ack_payload}")
+            logger.info(f"Sending acknowledgement payload: {ack_payload}")
 
             # Update the payment gateway log with the acknowledgement payload
             pg_log.req_ack = xml_to_dict(ack_payload)
@@ -746,7 +758,9 @@ class BillControlNumberPaymentCallbackView(View):
             return HttpResponse(ack_payload, content_type="text/xml", status=200)
         except Exception as e:
             # Log the error
-            print(e)
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to process payment response: {e}"
+            pg_log.save()
             logger.error(f"An error occurred: {str(e)}")
 
             # Return an HTTP response
@@ -799,7 +813,9 @@ class BillControlNumberReconciliationCallbackView(View):
             )
 
             # Compose an acknowledgement response payload
-            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+            private_key = load_private_key(
+                settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+            )
             ack_payload = compose_bill_reconciliation_response_acknowledgement_payload(
                 ack_id=req_id,
                 res_id=res_id,
@@ -1132,26 +1148,52 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
 
 def check_control_number_request_status(request, bill_id):
     """Check the status of a bill control number request."""
-    log = PaymentGatewayLog.objects.filter(bill_id=bill_id, req_type="1").latest(
-        "created_at"
-    )
-    if log is None:
-        # Handle case where log entry doesn't exist
+    try:
+        # Fetch the latest log entry for this bill
+        log = PaymentGatewayLog.objects.filter(bill_id=bill_id, req_type="1").latest(
+            "created_at"
+        )
+
+        # If log does not exist
+        if not log:
+            return JsonResponse(
+                {"status": "NOT_FOUND", "message": "No record found for this bill."},
+                status=404,
+            )
+
+        # Handle log status conditions
+        if log.status == "ERROR":
+            return JsonResponse({"status": "ERROR", "message": log.status_desc})
+        elif log.status == "SUCCESS":
+            try:
+                bill = Bill.objects.get(bill_id=bill_id)
+                return JsonResponse(
+                    {
+                        "status": log.status,
+                        "message": log.status_desc,
+                        "control_number": bill.cust_cntr_num,
+                    }
+                )
+            except ObjectDoesNotExist:
+                # Handle case where the bill doesn't exist
+                return JsonResponse(
+                    {"status": "ERROR", "message": "Bill not found."}, status=404
+                )
+        else:
+            return JsonResponse({"status": log.status, "message": log.status_desc})
+
+    except ObjectDoesNotExist as e:
+        logger.error(f"No log found for bill_id {bill_id}: {str(e)}")
         return JsonResponse(
             {"status": "NOT_FOUND", "message": "No record found for this bill."},
             status=404,
         )
 
-    if log.status == "ERROR":
-        return JsonResponse({"status": "ERROR", "message": log.status_desc})
-    elif log.status == "SUCCESS":
-        bill = Bill.objects.get(bill_id=bill_id)
-        return JsonResponse(
-            {
-                "status": log.status,
-                "message": log.status_desc,
-                "control_number": bill.cust_cntr_num,
-            }
+    except Exception as e:
+        # Catch all other exceptions
+        logger.error(
+            f"Error fetching control number request status for bill_id {bill_id}: {str(e)}"
         )
-    else:
-        return JsonResponse({"status": log.status, "message": log.status_desc})
+        return JsonResponse(
+            {"status": "ERROR", "message": "Internal server error"}, status=500
+        )

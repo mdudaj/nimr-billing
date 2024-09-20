@@ -87,7 +87,7 @@ $('tr[data-bill-id]').each(function () {
                     success: function (data) {
                         if (data.status === 'ERROR') {
                             cntrnum.html('<i class="exclamation triangle icon"></i> ' + data.message);
-                        } else if (data.status === 'SUCCESS') {
+                        } else if (data.status === 'SUCCESS' && data.control_number) {
                             cntrnum.text(data.control_number);
                             clearInterval(intervalId); // Stop polling when success
                         } else {

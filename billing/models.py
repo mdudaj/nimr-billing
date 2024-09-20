@@ -574,7 +574,7 @@ class Payment(TimeStampedModel, models.Model):
         ]
 
     def __str__(self):
-        return f"Payment for Bill ID - {self.bill.bill_id}, Control Number - {self.bill.cntr_num} paid. Amount - {self.paid_amt}"
+        return f"Payment for Bill ID - {self.bill.bill_id}, Control Number - {self.bill.cntr_num} paid. PayRef - {self.payref_id}"
 
 
 class PaymentReconciliation(TimeStampedModel, models.Model):

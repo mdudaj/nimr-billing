@@ -271,6 +271,10 @@ SP_CODE = os.environ.get("SP_CODE")
 SUB_SP_CODE = os.environ.get("SUB_SP_CODE")
 SP_SYS_ID = os.environ.get("SP_SYS_ID")
 
+# Encryption Key
+ENCRYPTION_KEY_FILE = os.environ.get("ENCRYPTION_KEY_FILE")
+ENCRYPTION_KEY_PASSWORD = os.environ.get("ENCRYPTION_KEY_PASSWORD")
+
 # Email Configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.environ.get("EMAIL_HOST")

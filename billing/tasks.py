@@ -58,7 +58,9 @@ def send_bill_control_number_request(self, req_id, bill_id):
         }
 
         # Load the private key for signing the request
-        private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+        private_key = load_private_key(
+            settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+        )
 
         # Compose the bill control number request payload
         payload = compose_bill_control_number_request_payload(
@@ -320,38 +322,7 @@ def process_bill_payment_response(
             trx_date.isoformat() if isinstance(trx_date, datetime) else trx_date
         )
 
-        # Create PaymentGatewayLog object to store the rrecived data
-        pg_log, created = PaymentGatewayLog.objects.get_or_create(
-            req_id=req_id,
-            req_type="5",
-            status="PENDING",
-            status_desc="Payment response received. Processing...",
-            defaults={
-                "req_data": {
-                    "bill_id": bill_id,
-                    "cntr_num": cust_cntr_num,
-                    "psp_code": psp_code,
-                    "psp_name": psp_name,
-                    "trx_id": trx_id,
-                    "payref_id": payref_id,
-                    "bill_amt": bill_amt,
-                    "paid_amt": paid_amt,
-                    "paid_ccy": paid_ccy,
-                    "coll_acc_num": coll_acc_num,
-                    "trx_date": trx_date_str,
-                    "pay_channel": pay_channel,
-                    "trdpty_trx_id": trdpty_trx_id,
-                    "pyr_cell_num": pyr_cell_num,
-                }
-            },
-        )
-
-        if not created:
-            logger.info(
-                f"PaymentGatewayLog entry for req_id: {req_id}, req_type: '5' already exists. Skipping creation."
-            )
-
-        # Check if the payment with the same control number has already been processed to avoid reposting
+        # Check if the payment information with the same control number has already been processed to avoid reposting
         if Payment.objects.filter(bill=bill, cust_cntr_num=cust_cntr_num).exists():
             logger.warning(
                 f"Duplicate payment detected for control number: {cust_cntr_num}. Skipping processing..."
@@ -448,7 +419,9 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code, trxDt)
     # This task is triggered by a scheduled task for reconciliation of the previous day starting between 0600hrs to 2359hrs
 
     # Load private key for signing the request
-    private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+    private_key = load_private_key(
+        settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+    )
 
     try:
         # Send the bill reconciliation request to the Payment Gateway API
@@ -623,42 +596,4 @@ def process_bill_reconciliation_response(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
             f"Error processing bill reconciliation response for request ID: {req_id} - {str(e)}",
-        )
-
-
-@shared_task
-def send_bill_reconciliation_response_acknowledgement(ack_id, res_id, ack_sts_code):
-    # Send acknowledgment for the bill reconciliation response back to the Payment Gateway API
-
-    try:
-        # GEPG API URL for sending the acknowledgment
-        url = settings.BILL_RECONCILIATION_URL
-
-        # GEPG API headers
-        headers = {
-            "Content-Type": "application/xml",
-        }
-
-        # Compose the acknowledgment response payload
-        payload = compose_bill_reconciliation_response_acknowledgement_payload(
-            ack_id, res_id, ack_sts_code
-        )
-
-        # Send the acknowledgment response to the GEPG API
-        response = requests.post(url, headers=headers, data=payload)
-
-        # Check the response status code
-        if response.status_code == 200:
-            # Log the successful acknowledgment
-            logger.info(
-                "Bill reconciliation response acknowledgment sent successfully."
-            )
-        else:
-            # Log the failure to send acknowledgment
-            logger.error("Failed to send bill reconciliation response acknowledgment.")
-
-    except Exception as e:
-        # Handle any exceptions that occur during the acknowledgment process
-        logger.error(
-            f"Error sending bill reconciliation response acknowledgment: {str(e)}"
         )
