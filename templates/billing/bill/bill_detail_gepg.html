@@ -1,0 +1,105 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Bill Details {% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="sixteen wide column">
+        <div class="ui clearing basic segment">
+            <h1 class="ui left floated dividing header">Bill Details</h1>
+            <a href="{% url 'billing:bill-list' %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Back to Bill List</div>
+                <div class="hidden content centered">
+                    <i class="arrow left icon"></i>
+                </div>
+            </a>
+            {% if bill.cntr_num %}
+            <a href="{% url 'billing:bill-print' bill.pk %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Print Bill</div>
+                <div class="hidden content centered">
+                    <i class="print icon"></i>
+                </div>
+            </a>
+            <a href="{% url 'billing:bill-transfer-print' bill.pk %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Print Bill Transfer</div>
+                <div class="hidden content centered">
+                    <i class="print icon"></i>
+                </div>
+            </a>
+            {% endif %}
+        </div>
+        <div class="ui clearing segment">
+            <div class="ui grid">
+                <div class="eight wide column">
+                    {% if bill.cntr_num %}
+                    <h4 class="ui header">Control Number: {{ bill.cntr_num }}</h4>
+                    {% elif bill.get_cntr_num_request_status.status == 'ERROR' %}
+                    <p id="cntrnum" class="ui red icon message">
+                        <i class="exclamation triangle icon"></i> {{ bill.get_cntr_num_request_status.status_desc }}
+                    </p>
+                    {% else %}
+                    <h4 id="cntrnum" class="ui header">Control Number: Still working on it ...</h4>
+                    {% endif %}
+                    <h4 class="ui header">Payment Ref: {{ bill.payment_ref }}</h4>
+                    <h4 class="ui header">Service Provider Code: {{ bill.service_provider.code }}</h4>
+                    <h4 class="ui header">Payer Name: {{ bill.customer.get_name }}</h4>
+                    <h4 class="ui header">Payer Phone: {{ bill.customer.cell_num }}</h4>
+                    <h4 class="ui header">Bill Description: {{ bill.description }}</h4>
+                </div>
+                <div class="ui divider"></div>
+                <div class="eight wide column">
+                    <h4 class="ui header">Billed Item({{ bill.billed_items.count }}): {{ bill.billed_items.description }}</h4>
+                </div>
+                <div class="ui section divider"></div>
+                <div class="eight wide column">
+                    <h4 class=""ui header">Amount in Words: {{ bill.amount_in_words }}</h4>
+                    <h4 class="ui header">Expires on: {{ bill.expr_date|date:"d-m-Y" }}</h4>
+                    <h4 class="ui header">Prepared By: {{ bill.gen_by }}</h4>
+                    <h4 class="ui header">Collection Center: {{ bill.dept.name }}</h4>
+                </div>
+            </div>
+        </div>
+        {% if not bill.is_paid %}
+        <div class="ui clearing basic segment">
+            <a href="{% url 'billing:bill-update' bill.pk %}" class="ui left floated primary button" tabindex="0">
+                Update
+            </a>
+            <a href="{% url 'billing:bill-delete' bill.pk %}" class="ui right floated negative button" tabindex="0">
+                Delete
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}
+
+{% block extrascript %}
+<script>
+    $(document).ready(function () {
+    const billId = '{{ bill.pk }}';
+    const cntrnum = $('#cntrnum');
+    let dots = ['.', '..', '...'];
+    let index = 0;
+
+    setInterval(function () {
+        // Make an AJAX request to check for task status
+        $.ajax({
+            url: "{% url 'billing:check-control-number-request-status' 0 %}".replace('0', billId),
+            method: 'GET',
+            success: function(data) {
+                if (data.status === 'ERROR') {
+                    cntrnum.html('<i class="exclamation triangle icon"></i> ' + data.message);
+                } else {
+                    cntrnum.text('Still working on it' + dots[index]);
+                    index = (index + 1) % dots.length;
+                }
+            }
+        });
+    }, 5000);
+});
+</script>
+{% endblock extrascript %}

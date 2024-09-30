@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Bill</title>
+    <link rel="stylesheet" href="{% static 'semantic-ui/semantic.min.css' %}">
+    <link href="{% static 'css/printout.css' %}" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Header Section -->
+    <div class="ui center aligned container">
+        <div class="gov-logo">
+            <img src="file://{{ image_path }}" alt="Government Logo">
+        </div>
+        <h5 class="ui header">United Republic of Tanzania</h5>
+        <h3 class="ui header">National Institute for Medical Research</h3>
+        <h6 class="ui header">Government Bill</h6>
+    </div>
+
+    <div class="ui divider"></div>
+
+    <!-- Bill Info Section -->
+    <div class="ui grid">
+        <div class="eight wide column">
+            <div class="ui list">
+                <div class="item"><strong>Control Number:</strong> 995910063383</div>
+                <div class="item"><strong>Payment Ref:</strong> 59109269242011757835</div>
+                <div class="item"><strong>Service Provider Code:</strong> SP591</div>
+                <div class="item"><strong>Payer Name:</strong> Prof. Andrea B. Pembe</div>
+                <div class="item"><strong>Payer Phone:</strong> 0754262483</div>
+                <div class="item">
+                    <strong>Bill Description:</strong> Individually randomized trial of higher-dose iron 60 mg 45 mg<br>
+                    compared to low dose iron 30 mg in multiple micronutrient supplements in pregnancy on moderate and severe maternal anemia
+                </div>
+            </div>
+        </div>
+
+        <div class="eight wide column right aligned">
+            <div class="qr-code">
+                <!-- Placeholder for the QR code -->
+            </div>
+            <div class="scan-pay">
+                SCAN & PAY by M-PESA or TIGO-PESA APPs
+            </div>
+        </div>
+    </div>
+
+    <div class="ui divider"></div>
+
+    <!-- Bill Details Section -->
+    <div class="ui table">
+        <table class="ui celled table">
+            <thead>
+                <tr>
+                    <th>Billed Item</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>Receipt from Research Fees - 59109269242011757835</td>
+                    <td>200.00 (USD)</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Total Billed Amount:</strong> 200.00 (USD)</p>
+        <p><strong>Amount in Words:</strong> Two Hundred US Dollar And Zero Cent(s) Only</p>
+    </div>
+
+    <!-- Expiry & Signature Section -->
+    <div class="ui grid">
+        <div class="eight wide column">
+            <div class="ui list">
+                <div class="item"><strong>Expires on:</strong> 24-Nov-2024</div>
+                <div class="item"><strong>Prepared By:</strong> Justine Severin Tibalinda</div>
+                <div class="item"><strong>Collection Center:</strong> NIMR HQ</div>
+                <div class="item"><strong>Printed By:</strong> Justine Severin Tibalinda</div>
+                <div class="item"><strong>Printed On:</strong> 25-Sep-2024</div>
+            </div>
+        </div>
+        <div class="eight wide column right aligned">
+            <p><strong>Signature:</strong> ______________________________</p>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="ui grid">
+        <div class="eight wide column">
+            <h4>Jinsi ya Kulipa:</h4>
+            <p>1. Kupitia Benki: Fika tawi lolote au wakala wa benki ya NMB, CRDB, NBC, BOT. Namba ya kumbukumbu: 995910063383.</p>
+            <p>2. Kupitia Mitandao ya Simu: Ingia kwenye menyu ya mtandao husika, Chagua 4 (Lipa Bili), Chagua 5 (Malipo ya Serikali), Ingiza 995910063383 kama namba ya kumbukumbu.</p>
+        </div>
+
+        <div class="eight wide column right aligned">
+            <h4>How To Pay:</h4>
+            <p>1. Via Bank: Visit any branch or bank agent of NMB, CRDB, NBC, BOT. Reference Number: 995910063383.</p>
+            <p>2. Via Mobile Network Operators (MNO): Enter the respective USSD Menu, Select 4 (Make Payments), Select 5 (Government Payments), Enter 995910063383 as the reference number.</p>
+        </div>
+
+        <div class="sixteen wide column center aligned">
+            <p>Government Payment Gateway © 2017 All Rights Reserved (GePG)</p>
+        </div>
+    </footer>
+
+</body>
+</html>

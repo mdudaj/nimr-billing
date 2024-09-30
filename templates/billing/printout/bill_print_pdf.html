@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Bill</title>
+    <link rel="stylesheet" href="{% static 'css/bill_print_pdf.css' %}">
+</head>
+<body>
+    <div class="header">
+        <img src="file://{{ image_path }}" alt="Government Logo" class="gov-logo">
+        <h5>United Republic Of Tanzania</h5>
+        <h3>National Institute for Medical Research</h3>
+        <h6>Government Bill</h6>
+    </div>
+
+    <hr>
+
+    <div class="bill-details">
+        <p><strong>Control Number</strong> : {{ bill.cntr_num }}</p>
+        <p><strong>Payment Ref</strong> : {{ bill.payment_ref }}</p>
+        <p><strong>Service Provider Code</strong> : {{ bill.service_provider.code }}</p>
+        
+        <div class="payer-info">
+            <p><strong>Payer Name</strong> : {{ bill.customer.get_name }}</p>
+            <p><strong>Payer Phone</strong> : {{ bill.customer.cell_num }}</p>
+        </div>
+
+        <div class="bill-description">
+            <p><strong>Bill Description</strong> :</p>
+            <p>{{ bill.description }}</p>
+        </div>
+
+        <hr class="bold-line">
+
+        <div class="billed-item">
+            <p><strong>Billed Item ({{ bill.billed_items.count }})</strong> : {{ bill.billed_items.description }} : <strong>{{ bill.billed_items.amount }}</strong></p>
+        </div>
+
+        <hr class="bold-line">
+
+        <div class="total-billed">
+            <p><strong>Total Billed Amount</strong> : {{ bill.amt }} ({{ bill.currency }})</p>
+            <p><strong>Amount in words</strong> : {{ bill.amount_in_words }}</p>
+        </div>
+
+        <p><strong>Expires on</strong> : {{ bill.expr_date|date:"d-M-Y" }}</p>
+        <p><strong>Prepared By</strong> : {{ bill.gen_by }}</p>
+        <p><strong>Collection Center</strong> : {{ bill.dept.name }}</p>
+        <p><strong>Printed By</strong> : {{ bill.gen_by }}</p>
+        <p><strong>Printed On</strong> : {{ print_date }}</p>
+
+        <p><strong>Signature</strong> : ........................................</p>
+    </div>
+
+    <div class="payment-instructions">
+        <div class="left-column">
+            <h5>Jinsi ya Kulipa:</h5>
+            <p>1. Kupitia Benki: Fika tawi lolote au wakala wa benki ya NMB, CRDB, NBC, BOT. Namba ya kumbukumbu: <strong>{{ bill.cntr_num }}</strong>.</p>
+            <p>2. Kupitia Mitandao ya Simu</p>
+            <p>• Ingia kwenye menyu ya mtandao husika</p>
+            <p>• Chagua 4 (Lipa Bili)</p>
+            <p>• Chagua 5 (Malipo ya Serikali) Ingiza <strong>{{ bill.cntr_num }}</strong> kama namba ya kumbukumbu</p>
+        </div>
+
+        <div class="right-column">
+            <h5>How To Pay:</h5>
+            <p>1. Via Bank: Visit any branch or bank agent of NMB, CRDB, NBC, BOT. Reference Number: <strong>{{ bill.cntr_num }}</strong>.</p>
+            <p>2. Via Mobile Network Operators (MNO):</p>
+            <p>• Enter to the respective USSD Menu of MNO</p>
+            <p>• Select 4 (Make Payments)</p>
+            <p>• Select 5 (Government Payments) Enter <strong>{{ bill.cntr_num }}</strong> as reference number</p>
+        </div>
+    </div>
+</body>
+</html>

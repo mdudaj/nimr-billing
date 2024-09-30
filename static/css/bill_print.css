@@ -1,0 +1,81 @@
+@page {
+    size: A4;
+    @bottom-center {
+        content: "Government Payment Gateway © 2017 All Rights Reserved (GePG)";
+        color: rgb(2, 74, 146);
+        font-size: 12px;
+    }
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 15px;
+    font-size: 14px;
+}
+
+.header {
+    text-align: center;
+}
+
+.gov-logo {
+    width: 50px;
+    display: block;
+    margin: 0 auto 10px;
+}
+
+h3, h5, h6 {
+    margin: 0;
+}
+
+.bill-details, .payment-instructions, footer {
+    margin-top: 15px;
+}
+
+.bill-details p, .billed-item p, .total-billed p {
+    margin: 5px 0;
+    line-height: 1.6; /* Line spacing for bill details */
+}
+
+.bill-description {
+    font-size: 11px; /* Smaller font for bill description */
+}
+
+.bold-line {
+    border: 1px dashed #000;
+}
+
+.billed-item, .total-billed {
+    margin-top: 10px;
+}
+
+.left-column, .right-column {
+    width: 45%;
+    float: left;
+    font-size: 12px; /* Smaller font for instructions */
+}
+
+.left-column {
+    text-align: left;
+}
+
+.right-column {
+    text-align: left;
+    margin-left: 60px; /* Adjust this value to push the column to the right */
+}
+
+hr {
+    border: 1px dashed #000;
+    opacity: 1; /* Make the dotted line darker */
+}
+
+.payment-instructions::before {
+    content: "";
+    display: table;
+    clear: both;
+    padding-top: 100px;
+}
+
+.signature {
+    margin-top: 20px;
+}

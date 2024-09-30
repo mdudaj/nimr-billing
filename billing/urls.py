@@ -38,6 +38,10 @@ from .views import (
     PaymentListView,
     PaymentDetailView,
     check_control_number_request_status,
+    generate_bill_print_pdf,
+    BillPrintPDFView,
+    BillTransferPrintPDFView,
+    BillReceiptPrintPDFView,
 )
 
 app_name = "billing"
@@ -133,6 +137,17 @@ urlpatterns = [
     path("bill/create/", BillCreateView.as_view(), name="bill-create"),
     path("bill/<int:pk>/update/", BillUpdateView.as_view(), name="bill-update"),
     path("bill/<int:pk>/delete/", BillDeleteView.as_view(), name="bill-delete"),
+    path("bill/print/<int:pk>/", BillPrintPDFView.as_view(), name="bill-print"),
+    path(
+        "bill/transfer-print/<int:pk>/",
+        BillTransferPrintPDFView.as_view(),
+        name="bill-transfer-print",
+    ),
+    path(
+        "bill/receipt-print/<int:pk>/",
+        BillReceiptPrintPDFView.as_view(),
+        name="bill-receipt-print",
+    ),
     path(
         "bill-control-number-response-callback/",
         BillControlNumberResponseCallbackView.as_view(),
@@ -151,9 +166,14 @@ urlpatterns = [
     path("payment/", PaymentListView.as_view(), name="payment-list"),
     path("payment/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail"),
     path(
-        "check-control-number-request-status/<int:bill_id>/",
+        "check-control-number-request-status/<int:pk>/",
         check_control_number_request_status,
         name="check-control-number-request-status",
+    ),
+    path(
+        "generate-bill-pdf/<int:pk>/",
+        generate_bill_print_pdf,
+        name="generate-bill-print-pdf",
     ),
     path(
         "cancelled-bill/",

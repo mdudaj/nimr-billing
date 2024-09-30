@@ -29,6 +29,9 @@ djangorestframework-api-key = "==2.*"
 selenium = "*"
 pyvirtualdisplay = "*"
 chromedriver-autoinstaller = "*"
+weasyprint = "*"
+inflect = "*"
+django-weasyprint = "*"
 
 [dev-packages]
 

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Transfer Form</title>
+    <link rel="stylesheet" href="{% static 'css/bill_transfer.css' %}">
+</head>
+<body>
+    <div class="header centered">
+        <img src="file://{{ image_path }}" alt="Government Logo" class="gov-logo">
+        <h5>United Republic Of Tanzania</h5>
+        <h4>National Institute for Medical Research</h4>
+        <h3>Order Form for Electronic Funds Transfer to BANK OF TANZANIA</h3>
+    </div>
+
+    <hr class="bold-line">
+
+    <div class="transfer-details">
+        <div class="taxpayer-details">
+            <p><strong>(a). Remitter / Tax Payer Details:</strong></p>
+            <p>Name of Account Holder(s): ......................................................</p>
+            <p>Name of Commercial Bank: ...........................................................</p>
+            <p>Bank Account Number: .................................................................</p>
+            <p>Signatories:     1<sup>st</sup> Signatory: ................................... | 2<sup>nd</sup> Signatory: ....................................</p>
+        </div>
+
+        <hr class="bold-line">
+
+        <div class="beneficiary-details">
+            <p><strong>(b). Beneficiary Details:</strong></p>
+            <p>National Institute for Medical Research (NIMR)</p>
+            <p>CRDB BANK PLC</p>
+            <p>Account Number: <strong>{{ bill.dept.account_num }}</strong></p>
+            <p>SWIFT Code: <strong>CORUTZTZ</strong></p>
+            <p>Control Number: <strong>{{ bill.cntr_num }}</strong></p>
+            <p>Beneficiary Account (Field 59 of MT103): <strong>{{ bill.dept.account_num }}</strong></p>
+            <p>Payment Reference (Field 70 of MT103): <strong>{{ bill.payment_ref }}</strong></p>
+            <p>Transfer Amount: <strong>{{ bill.amt }} ({{ bill.currency }})</strong></p>
+            <p>Amount in Words: <strong>{{ bill.amount_in_words }}</strong></p>
+            <p>Being payment for: <strong>{{ bill.customer.get_name }}</strong></p>
+        </div>
+
+        <hr class="bold-line">
+
+        <div class="billed-items">
+            <p><strong>Billed Item ({{ bill.billed_items.count }}):</strong></p>
+            <p>{{ bill.billed_items.description }}</p>
+        </div>
+
+        <hr class="bold-line">
+
+        <div class="printed-details">
+            <p>Printed on: <strong>{{ print_date }}</strong></p>
+            <p>Expires on: <strong>{{ bill.expr_date|date:"d-M-Y" }}</strong></p>
+            <p>Printed By: <strong>{{ bill.gen_by }}</strong></p>
+            <p>Signature: ................................................</p>
+        </div>
+
+        <div class="instructions-details">
+            <p><strong>Note to Commercial Bank:</strong></p>
+            <ol>
+                <li>Please capture the above information correctly. Do not change or add any text, symbols or digits on the information provided.</li>
+                <li>Field 59 of MT103 is an "Account Number" with value: <strong>/{{ bill.dept.account_num }}</strong>. Must be captured correctly.</li>
+                <li>Field 70 of MT103 is a "Control Number" with value: <strong>/ROC/{{ bill.cntr_num }}</strong>. Must be captured correctly.</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends 'semantic-ui/layouts/pdf_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="section content-placeholder">
+    <!-- Payment Details Section -->
+    ________________________________________________________________________________________<br>
+    <strong>Control Number</strong>     : {{ bill.cntr_num }}<br>
+    <strong>Payment Ref</strong>        : {{ bill.payment_ref }}<br>
+    <strong>Service Provider Code</strong> : {{ bill.service_provider.code }}<br>
+    <strong>Payer Name</strong>         : {{ bill.customer.get_name }}<br>
+    <strong>Payer Phone</strong>        : {{ bill.customer.cell_num }}<br>
+    
+    <!-- Bill Description Section -->
+    <strong>Bill Description</strong>   : {{ bill.description }}<br>
+    --------------------------------------------------------------------------------------------<br>
+    
+    <!-- Billed Items Section -->
+    <strong>Billed Item ({{ bill.billed_items.count }})</strong>: {{ bill.billed_items.description }}<br>
+                                : {{ bill.billed_items.amount }}<br>
+    --------------------------------------------------------------------------------------------<br>
+    
+    <strong>Total Billed Amount</strong>: {{ bill.amt }} (USD)<br>
+    <strong>Amount in Words</strong>    : {{ bill.amount_in_words }}<br>
+    
+    <!-- Expiration and Preparation Information Section -->
+    <strong>Expires on</strong>         : {{ bill.expr_date|date:"d-M-Y" }}<br>
+    <strong>Prepared By</strong>        : {{ bill.gen_by }}<br>
+    <strong>Collection Center</strong>  : {{ bill.dept.name }}<br>
+    <strong>Printed By</strong>         : {{ bill.gen_by }}<br>
+    <strong>Printed On</strong>         : {{ bill.gen_date|date:"d-M-Y" }}<br>
+</div>
+{% endblock content %}

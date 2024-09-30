@@ -1,13 +1,18 @@
+import functools
 import logging
 import requests
+import ssl
+
 from django.db import transaction
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -20,6 +25,8 @@ from django.views.generic import (
     DetailView,
     View,
 )
+
+from django_weasyprint.views import WeasyTemplateView
 
 
 from .models import (
@@ -53,7 +60,9 @@ from .utils import (
     compose_bill_reconciliation_response_acknowledgement_payload,
     compose_bill_cancellation_payload,
     compose_bill_cancellation_response_acknowledgement_payload,
+    custom_url_fetcher,
     generate_request_id,
+    generate_pdf,
     load_private_key,
     parse_bill_control_number_response,
     parse_payment_response,
@@ -378,7 +387,7 @@ class BillListView(LoginRequiredMixin, ListView):
 
 class BillDetailView(LoginRequiredMixin, DetailView):
     model = Bill
-    template_name = "billing/bill/bill_detail.html"
+    template_name = "billing/bill/bill_detail_gepg.html"
 
 
 class BillCreateView(LoginRequiredMixin, CreateView):
@@ -1146,11 +1155,13 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
     template_name = "billing/payment/payment_detail.html"
 
 
-def check_control_number_request_status(request, bill_id):
+def check_control_number_request_status(request, pk):
     """Check the status of a bill control number request."""
+
+    bill = get_object_or_404(Bill, id=pk)
     try:
         # Fetch the latest log entry for this bill
-        log = PaymentGatewayLog.objects.filter(bill_id=bill_id, req_type="1").latest(
+        log = PaymentGatewayLog.objects.filter(bill=bill, req_type="1").latest(
             "created_at"
         )
 
@@ -1165,25 +1176,18 @@ def check_control_number_request_status(request, bill_id):
         if log.status == "ERROR":
             return JsonResponse({"status": "ERROR", "message": log.status_desc})
         elif log.status == "SUCCESS":
-            try:
-                bill = Bill.objects.get(bill_id=bill_id)
-                return JsonResponse(
-                    {
-                        "status": log.status,
-                        "message": log.status_desc,
-                        "control_number": bill.cust_cntr_num,
-                    }
-                )
-            except ObjectDoesNotExist:
-                # Handle case where the bill doesn't exist
-                return JsonResponse(
-                    {"status": "ERROR", "message": "Bill not found."}, status=404
-                )
+            return JsonResponse(
+                {
+                    "status": log.status,
+                    "message": log.status_desc,
+                    "control_number": bill.cntr_num,
+                }
+            )
         else:
             return JsonResponse({"status": log.status, "message": log.status_desc})
 
     except ObjectDoesNotExist as e:
-        logger.error(f"No log found for bill_id {bill_id}: {str(e)}")
+        logger.error(f"No log found for bill_id {bill.bill_id}: {str(e)}")
         return JsonResponse(
             {"status": "NOT_FOUND", "message": "No record found for this bill."},
             status=404,
@@ -1192,8 +1196,148 @@ def check_control_number_request_status(request, bill_id):
     except Exception as e:
         # Catch all other exceptions
         logger.error(
-            f"Error fetching control number request status for bill_id {bill_id}: {str(e)}"
+            f"Error fetching control number request status for bill_id {bill.bill_id}: {str(e)}"
         )
         return JsonResponse(
             {"status": "ERROR", "message": "Internal server error"}, status=500
         )
+
+
+def generate_bill_print_pdf(request, pk):
+    """Generate a PDF version of the bill."""
+
+    try:
+        # Fetch the bill object
+        bill = Bill.objects.get(id=pk)
+
+        # Get the base URL
+        base_url = request.build_absolute_uri()
+
+        # Generate the bill PDF
+        pdf = generate_pdf(bill, "bill_print_pdf.html", base_url)
+
+        # Return the PDF as a response
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{bill.bill_id}.pdf"'
+        return response
+
+    except ObjectDoesNotExist as e:
+        logger.error(f"Bill {bill.bill_id} not found: {str(e)}")
+        messages.error(request, f"Bill {bill.bill_id} not found.")
+        return redirect("billing:bill-list")
+
+    except Exception as e:
+        logger.error(f"Error generating PDF for bill {bill.bill_id}: {str(e)}")
+        messages.error(request, f"Internal server error occurred. {str(e)}")
+        return redirect("billing:bill-list")
+
+
+class BillPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
+    template_name = "billing/printout/bill_print_pdf.html"
+    pdf_stylesheets = [
+        # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
+        settings.STATIC_ROOT
+        + "/css/bill_print.css",
+    ]
+    pdf_attachment = True
+
+    # Genaration date
+    print_date = timezone.now().strftime("%d-%m-%Y")
+
+    def get_url_fetcher(self):
+        # Disable host and certificate verification
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        # Return a partial function with modified SSL context
+        return functools.partial(custom_url_fetcher, ssl_context=context)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        context["image_path"] = logo_path
+        context["bill"] = self.get_bill()
+        context["print_date"] = self.print_date
+        return context
+
+    def get_bill(self):
+        return Bill.objects.get(pk=self.kwargs["pk"])
+
+    def get_pdf_filename(self):
+        # Get the bill and generate the PDF filename dynamically using the bill_id
+        bill = self.get_bill()
+        return f"{bill.bill_id}.pdf"
+
+
+class BillTransferPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
+    template_name = "billing/printout/bill_transfer_print_pdf.html"
+    pdf_stylesheets = [
+        # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
+        settings.STATIC_ROOT
+        + "/css/bill_transfer_print.css",
+    ]
+    pdf_attachment = True
+
+    # Genaration date
+    print_date = timezone.now().strftime("%d-%m-%Y")
+
+    def get_url_fetcher(self):
+        # Disable host and certificate verification
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        # Return a partial function with modified SSL context
+        return functools.partial(custom_url_fetcher, ssl_context=context)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        context["image_path"] = logo_path
+        context["bill"] = self.get_bill()
+        context["print_date"] = self.print_date
+        return context
+
+    def get_bill(self):
+        return Bill.objects.get(pk=self.kwargs["pk"])
+
+    def get_pdf_filename(self):
+        # Get the bill transfer and generate the PDF filename dynamically using the transfer_id
+        bill = self.get_bill()
+        return f"{bill.bill_id}_Transfer.pdf"
+
+
+class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
+    template_name = "billing/printout/bill_receipt_print_pdf.html"
+    pdf_stylesheets = [
+        # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
+        settings.STATIC_ROOT
+        + "/css/bill_receipt_print.css",
+    ]
+    pdf_attachment = True
+
+    def get_url_fetcher(self):
+        # Disable host and certificate verification
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        # Return a partial function with modified SSL context
+        return functools.partial(custom_url_fetcher, ssl_context=context)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        context["image_path"] = logo_path
+        context["bill_rcpt"] = self.get_payment()
+        return context
+
+    def get_payment(self):
+        bill = Bill.objects.get(pk=self.kwargs["pk"])
+        return Payment.objects.get(bill=bill)
+
+    def get_pdf_filename(self):
+        # Get the payment and generate the PDF filename dynamically using the payment_id
+        rcpt = self.get_payment()
+        return f"{rcpt.bill.bill_id}_Receipt.pdf"

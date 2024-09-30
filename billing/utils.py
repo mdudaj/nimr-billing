@@ -1,16 +1,61 @@
 import base64
+import functools
 import logging
+import os
 import uuid
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import pkcs12
 from datetime import datetime
+from django.conf import settings
+from django.template.loader import get_template
 from django.utils import timezone
+from django_weasyprint.utils import django_url_fetcher
+from weasyprint import HTML
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 
 logger = logging.getLogger(__name__)
+
+
+def custom_url_fetcher(url, *args, **kwargs):
+    # Rewrite requests for CDN URLs to file path in STATIC_ROOT to use local file
+    cloud_storage_url = "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.4/"
+    if url.startswith(cloud_storage_url):
+        # Replace the CDN URL with a local file path in STATIC_ROOT or STATIC_URL
+        # with your local file path "/static/semantic-ui/semantic.min.css"
+
+        # Extract the relative path of the file from the CDN URL
+        file_path = url.replace(cloud_storage_url, "")
+
+        # Build the full file path using STATIC_ROOT (for local files)
+        local_file_path = os.path.join(settings.STATIC_ROOT, "semantic-ui", file_path)
+
+        # Convert the file path to a URL by prefixing it with "file://" scheme
+        url = f"file://{local_file_path}"
+
+    # Return the modified URL
+    return django_url_fetcher(url, *args, **kwargs)
+
+
+def generate_pdf(bill_obj, template_name, base_url):
+    """
+    Generate a PDF file for the bill object.
+    """
+
+    # Get the template for the bill
+    template = get_template(f"billing/bill/{template_name}")
+
+    logo = settings.STATIC_ROOT + "/img/coat-of-arms-of-tanzania.png"
+
+    # Render the template with the bill object
+    html = template.render({"bill": bill_obj, "logo": logo})
+
+    # Create a PDF file from the HTML
+    pdf = HTML(string=html, base_url=base_url).write_pdf()
+
+    return pdf
 
 
 def load_private_key(pfx_file, password):

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Bill</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .header {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .logo {
+            width: 105px; /* Adjust the logo size as needed */
+            margin-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 15px;
+            font-family: Courier, monospace;
+            font-size: 14px;
+        }
+        .details {
+            display: flex;
+            justify-content: space-between;
+            white-space: pre-wrap;
+            margin-bottom: 5px;
+        }
+        .divider {
+            border-bottom: 1px solid #000;
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        .content-placeholder {
+            text-align: left;
+            margin: 15px 0;
+            font-family: Courier, monospace;
+            font-size: 14px;
+        }
+    </style>
+
+    {% block extrastyle %}
+    {% endblock extrastyle %}
+
+</head>
+<body>
+  <div>
+    <!-- Header Section -->
+    <div class="header">
+        <img src="{% static 'img/coat-of-arms-of-tanzania.png' %}" class="logo">
+        <div>
+            United Republic of Tanzania<br>
+            National Institute for Medical Research<br>
+            Government Bill
+        </div>
+    </div>
+    
+    {% block content %}{% endblock content %}
+    
+    <!-- Signature Section -->
+    <div class="section">
+        <strong>Signature:</strong> ____________________________
+    </div>
+
+    <!-- Payment Instructions Section -->
+    <div class="divider"></div>
+    <div class="section">
+        <div class="section-title">How To Pay:</div>
+        <p>1. Via Bank: Visit any branch or bank agent of NMB, CRDB, NBC, BOT. Reference Number: {{ bill.control_number }}.</p>
+        <p>2. Via Mobile Network Operators (MNO):</p>
+        <ul>
+            <li>Enter to the respective USSD Menu of MNO</li>
+            <li>Select 4 (Make Payments)</li>
+            <li>Select 5 (Government Payments) Enter {{ bill.control_number }} as reference number</li>
+        </ul>
+    </div>
+
+    <!-- Footer Section -->
+    <div class="footer">
+        Government Payment Gateway © 2017 All Rights Reserved (GePG)
+    </div>
+  </div>
+</body>
+</html>

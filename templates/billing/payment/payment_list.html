@@ -13,7 +13,7 @@
             <tr>
                 <th>Bill Number</th>
                 <th>Control Number</th>
-                <th>Transaction ID</th>
+                <th>Pay Reference</th>
                 <th>Transaction Date</th>
                 <th>Bill Amount</th>
                 <th>Paid Amount</th>
@@ -24,7 +24,7 @@
             <tr>
                 <td><a href="{% url 'billing:payment-detail' payment.pk %}">{{ payment.bill.bill_id }}</a></td>
                 <td>{{ payment.cust_cntr_num }}</td>
-                <td>{{ payment.trx_id }}</td>
+                <td>{{ payment.payref_id }}</td>
                 <td>{{ payment.trx_date }}</td>
                 <td><small>{{ payment.currency }}</small> {{ payment.bill_amt }}</td>
                 <td><small>{{ payment.currency }}</small> {{ payment.paid_amt }}</td>

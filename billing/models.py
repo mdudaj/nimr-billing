@@ -1,3 +1,5 @@
+import inflect
+
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
@@ -118,9 +120,9 @@ class Customer(TimeStampedModel, models.Model):
         return f"{self.first_name} {self.middle_name} {self.last_name}"
 
     def get_name(self):
-        if self.middle_name is None:
-            return f"{self.first_name} {self.last_name}"
-        return f"{self.first_name} {self.middle_name} {self.last_name}"
+        # if self.middle_name is None:
+        #     return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"
 
 
 class ServiceProvider(TimeStampedModel, models.Model):
@@ -428,6 +430,39 @@ class Bill(TimeStampedModel, models.Model):
     def get_print_url(self):
         return reverse("billing:bill-print", kwargs={"pk": self.pk})
 
+    def service_provider(self):
+        return self.dept.service_provider
+
+    def payment_ref(self):
+        return f"{self.billitem_set.first().rev_src_itm.rev_src.name}"
+
+    def payer_name(self):
+        return self.customer.get_name()
+
+    def billed_items(self):
+        count = self.billitem_set.count()
+        if count == 1:
+            return {
+                "count": count,
+                "description": f"{self.billitem_set.first().rev_src_itm.description} - {self.payment_ref()}",
+                "amount": self.billitem_set.first().rev_src_itm.amt,
+            }
+
+        return {
+            "count": count,
+            "description": ", ".join(
+                [item.rev_src_itm.description for item in self.billitem_set.all()]
+            ),
+        }
+
+    def amount_in_words(self):
+        p = inflect.engine()
+        # Convert the amount to integer
+        amt_int = int(self.amt)
+        # Convert the amount to words and capitalize each word
+        amt_words = p.number_to_words(amt_int).title()
+        return f"{amt_words} {self.get_currency_display()}."
+
     def is_cancelled(self):
         return (
             hasattr(self, "cancelledbill") and self.cancelledbill.status == "CANCELLED"
@@ -565,7 +600,7 @@ class Payment(TimeStampedModel, models.Model):
     class Meta:
         verbose_name = _("Payment")
         verbose_name_plural = _("Payments")
-        ordering = ["trx_date"]
+        ordering = ["-trx_date"]
         constraints = [
             models.UniqueConstraint(
                 fields=["cust_cntr_num", "bill"],
@@ -575,6 +610,20 @@ class Payment(TimeStampedModel, models.Model):
 
     def __str__(self):
         return f"Payment for Bill ID - {self.bill.bill_id}, Control Number - {self.bill.cntr_num} paid. PayRef - {self.payref_id}"
+
+    def paid_amount_in_words(self):
+        p = inflect.engine()
+        # Convert the amount to integer
+        amt_int = int(self.paid_amt)
+        # Convert the amount to words and capitalize each word
+        amt_words = p.number_to_words(amt_int).title()
+        return f"{amt_words} {self.bill.get_currency_display()}."
+
+    def payment_ref(self):
+        return f"{self.bill.billitem_set.first().rev_src_itm.rev_src.name}"
+
+    def issuer_name(self):
+        return self.bill.dept.service_provider.name
 
 
 class PaymentReconciliation(TimeStampedModel, models.Model):

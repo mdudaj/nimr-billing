@@ -15,6 +15,13 @@
                     <i class="arrow left icon"></i>
                 </div>
             </a>
+            <a href="{% url 'billing:bill-receipt-print' payment.bill.id %}" class="ui right floated vertical animated primary button"
+                tabindex="0">
+                <div class="visible content">Print Receipt</div>
+                <div class="hidden content centered">
+                    <i class="print icon"></i>
+                </div>
+            </a>
         </div>
         <div class="ui segments">
             <div class="ui segment">

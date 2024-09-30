@@ -212,12 +212,6 @@ def process_bill_control_number_response(
     try:
         # Process the final response based on the status code
         if res_sts_code == "7101":  # Successful response
-            # Log the successful response
-            # Update the PaymentGatewayLog object with success status and description
-            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
-                status="SUCCESS",
-                status_desc=f"Bill control number request processed successfully. Control Number: {cust_cntr_num}",
-            )
             logger.info(
                 f"Bill {bill_id} control number request {req_id} processed successfully. Control Number: {cust_cntr_num}"
             )
@@ -225,6 +219,13 @@ def process_bill_control_number_response(
             bill = Bill.objects.get(bill_id=bill_id)
             bill.cntr_num = cust_cntr_num
             bill.save()
+
+            # Log the successful response
+            # Update the PaymentGatewayLog object with success status and description
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
+                status="SUCCESS",
+                status_desc=f"Bill control number request processed successfully. Control Number: {cust_cntr_num}",
+            )
 
             # Check if bill control number request came from external system
             if bill.sys_info is not None:

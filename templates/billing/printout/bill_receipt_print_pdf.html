@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Receipt</title>
+    <link rel="stylesheet" href="{% static 'css/bill_receipt_print.css' %}">
+</head>
+<body>
+    <div class="header centered">
+        <img src="file://{{ image_path }}" alt="Government Logo" class="gov-logo">
+        <h3>UNITED REPUBLIC OF TANZANIA</h3>
+        <h3>JAMHURI YA MUUNGANO WA TANZANIA</h3>
+        <h3>EXCHEQUER RECEIPT</h3>
+        <h3>STAKABADHI YA MALIPO YA SERIKALI</h3>
+    </div>
+
+    <hr class="bold-line">
+
+    <table>
+        <tbody>
+            <tr>
+                <td>RECEIPT NUMBER</td>
+                <td>{{ bill_rcpt.payref_id }}</td>
+            </tr>
+            <tr>
+                <td>RECEIVED FROM</td>
+                <td>{{ bill_rcpt.pyr_name }}</td>
+            </tr>
+            <tr>
+                <td>AMOUNT</td>
+                <td>{{ bill_rcpt.currency }} {{ bill_rcpt.paid_amt }}</td>
+            </tr>
+            <tr>
+                <td>AMOUNT IN WORDS</td>
+                <td>{{ bill_rcpt.paid_amount_in_words }}</td>
+            </tr>
+            <tr>
+                <td>IN RESPECT OF</td>
+                <td>{{ bill_rcpt.payment_ref }}</td>
+            </tr>
+            <tr>
+                <td>BANK REFERENCE</td>
+                <td>{{ bill_rcpt.trdpty_trx_id }}</td>
+            </tr>
+            <tr>
+                <td>CONTROL NUMBER</td>
+                <td>{{ bill_rcpt.cust_cntr_num }}</td>
+            </tr>
+            <tr>
+                <td>PAYMENT DATE</td>
+                <td>{{ bill_rcpt.trx_date|date:"M d, Y" }}</td>
+            </tr>
+            <tr>
+                <td>ISSUED BY</td>
+                <td>{{ bill_rcpt.issuer_name }}</td>
+            </tr>
+            <tr>
+                <td>DATE ISSUED</td>
+                <td>{{ bill_rcpt.trx_date|date:"M d, Y" }}</td>
+            </tr>
+            <tr>
+                <td>SIGNATURE</td>
+                <td><hr class="bold-line signature-line"></td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

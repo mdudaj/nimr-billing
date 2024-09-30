@@ -1,0 +1,67 @@
+@page {
+    size: A4;
+    margin: 20mm;
+    @bottom-center {
+        content: "Government Payment Gateway © 2024 All Rights Reserved (GePG)";
+        font-size: 12px;
+        margin-top: 30px;
+    }
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 2;
+}
+
+.header {
+    text-align: center;
+}
+
+.gov-logo {
+    width: 60px;
+    display: block;
+    margin: 0 auto 15px;
+}
+
+h3 {
+    margin: 0;
+    font-size: 16px;
+    text-transform: uppercase;
+}
+
+.bold-line {
+    border: 1px dashed #000;
+    margin: 10px 0;
+}
+
+table {
+    width: 100%;
+    margin-top: 15px;
+    font-size: 14px;
+    border-collapse: collapse;
+}
+
+td {
+    padding: 5px 0;
+}
+
+td:first-child {
+    width: 40%;
+}
+
+td:last-child {
+    width: 60%;
+}
+
+tr:last-child td {
+   padding-top: 30px;
+}
+
+.signature-line {
+    width: 100%;
+    margin: 0 auto;
+    border-bottom: 1px dashed #535252;
+}

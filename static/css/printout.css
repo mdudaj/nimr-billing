@@ -1,0 +1,76 @@
+/* Custom Styles for the Bill */
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+.gov-logo img {
+    width: 80px;
+    height: 80px;
+}
+
+.qr-code {
+    width: 80px;
+    height: 80px;
+    background-color: #ccc;
+    margin-bottom: 10px;
+}
+
+.scan-pay {
+    font-size: 10px;
+    color: gray;
+}
+
+/* Ensure the footer stays at the bottom of the page */
+footer {
+    margin-top: 20px;
+    font-size: 12px;
+}
+
+footer p {
+    margin: 5px 0;
+}
+
+@media print {
+    body {
+        font-size: 10pt;
+    }
+}
+/* Custom Styles for the Bill */
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+.gov-logo img {
+    width: 80px;
+    height: 80px;
+}
+
+.qr-code {
+    width: 80px;
+    height: 80px;
+    background-color: #ccc;
+    margin-bottom: 10px;
+}
+
+.scan-pay {
+    font-size: 10px;
+    color: gray;
+}
+
+/* Ensure the footer stays at the bottom of the page */
+footer {
+    margin-top: 20px;
+    font-size: 12px;
+}
+
+footer p {
+    margin: 5px 0;
+}
+
+@media print {
+    body {
+        font-size: 10pt;
+    }
+}
