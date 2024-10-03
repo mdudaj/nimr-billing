@@ -63,6 +63,7 @@ from .utils import (
     custom_url_fetcher,
     generate_request_id,
     generate_pdf,
+    generate_qr_code,
     load_private_key,
     parse_bill_control_number_response,
     parse_payment_response,
@@ -379,10 +380,15 @@ class BillListView(LoginRequiredMixin, ListView):
     model = Bill
     template_name = "billing/bill/bill_list.html"
 
-    # def get_queryset(self):
-    #     queryset = super().get_queryset()
-    #     queryset = [bill for bill in queryset if not bill.is_cancelled]
-    #     return queryset
+    def get_queryset(self):
+        # Get all bills first
+        queryset = super().get_queryset()
+
+        # Filter the queryset using the is_cancelled() method
+        queryset = queryset.filter(
+            id__in=[bill.id for bill in queryset if not bill.is_cancelled()]
+        )
+        return queryset
 
 
 class BillDetailView(LoginRequiredMixin, DetailView):
@@ -861,6 +867,10 @@ class BillCancellationCreateView(LoginRequiredMixin, CreateView):
 
     @transaction.atomic
     def form_valid(self, form):
+        print(
+            f"User: {self.request.user} | Authenticated: {self.request.user.is_authenticated}"
+        )
+
         context = self.get_context_data()
         cancl_bill_obj = form.save(commit=False)
         cancl_bill_obj.gen_by = self.request.user
@@ -881,7 +891,9 @@ class BillCancellationCreateView(LoginRequiredMixin, CreateView):
 
         # Try to load the private key and handle potential errors
         try:
-            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+            private_key = load_private_key(
+                settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+            )
         except Exception as e:
             logger.error(f"Failed to load private key: {e}")
             messages.error(self.request, "Internal error occurred. Please try again.")
@@ -984,7 +996,11 @@ class BillCancellationCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
     def form_invalid(self, form):
-        context = self.get_context_data()
+        # Log invalid form data to see the validation errors
+        logger.error(f"Form errors: {form.errors}")
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(self.request, f"{field}: {error}")
         return self.render_to_response(self.get_context_data(form=form))
 
 
@@ -1021,7 +1037,9 @@ class BillCancellationUpdateView(LoginRequiredMixin, UpdateView):
 
         # Try to load the private key and handle potential errors
         try:
-            private_key = load_private_key("security/gepgclientprivate.pfx", "passpass")
+            private_key = load_private_key(
+                settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+            )
         except Exception as e:
             logger.error(f"Failed to load private key: {e}")
             messages.error(self.request, "Internal error occurred. Please try again.")
@@ -1203,35 +1221,6 @@ def check_control_number_request_status(request, pk):
         )
 
 
-def generate_bill_print_pdf(request, pk):
-    """Generate a PDF version of the bill."""
-
-    try:
-        # Fetch the bill object
-        bill = Bill.objects.get(id=pk)
-
-        # Get the base URL
-        base_url = request.build_absolute_uri()
-
-        # Generate the bill PDF
-        pdf = generate_pdf(bill, "bill_print_pdf.html", base_url)
-
-        # Return the PDF as a response
-        response = HttpResponse(pdf, content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="{bill.bill_id}.pdf"'
-        return response
-
-    except ObjectDoesNotExist as e:
-        logger.error(f"Bill {bill.bill_id} not found: {str(e)}")
-        messages.error(request, f"Bill {bill.bill_id} not found.")
-        return redirect("billing:bill-list")
-
-    except Exception as e:
-        logger.error(f"Error generating PDF for bill {bill.bill_id}: {str(e)}")
-        messages.error(request, f"Internal server error occurred. {str(e)}")
-        return redirect("billing:bill-list")
-
-
 class BillPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
     template_name = "billing/printout/bill_print_pdf.html"
     pdf_stylesheets = [
@@ -1255,10 +1244,27 @@ class BillPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # Get the bill and generate the PDF filename dynamically using the bill_id
+        bill = self.get_bill()
         logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        qr_code_path = generate_qr_code(
+            {
+                "opType": "2",
+                "shortCode": "001001",
+                "billReference": bill.cntr_num,
+                "amount": bill.amt,
+                "billCcy": bill.currency,
+                "billExprDt": bill.expr_date.strftime("%Y-%m-%d"),
+                "billPayOpt": bill.pay_opt,
+                "billRsv01": f"National Institute for Medical Research|{bill.customer.get_name}",
+            },
+            logo_path=logo_path,
+        )
         context["image_path"] = logo_path
+        context["qr_code_path"] = qr_code_path
         context["bill"] = self.get_bill()
         context["print_date"] = self.print_date
+        print(qr_code_path)
         return context
 
     def get_bill(self):
@@ -1293,8 +1299,24 @@ class BillTransferPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # Get the bill and generate the PDF filename dynamically using the bill_id
+        bill = self.get_bill()
         logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        qr_code_path = generate_qr_code(
+            {
+                "opType": "2",
+                "shortCode": "001001",
+                "billReference": bill.cntr_num,
+                "amount": bill.amt,
+                "billCcy": bill.currency,
+                "billExprDt": bill.expr_date.strftime("%Y-%m-%d"),
+                "billPayOpt": bill.pay_opt,
+                "billRsv01": f"National Institute for Medical Research|{bill.customer.get_name}",
+            },
+            logo_path=logo_path,
+        )
         context["image_path"] = logo_path
+        context["qr_code_path"] = qr_code_path
         context["bill"] = self.get_bill()
         context["print_date"] = self.print_date
         return context

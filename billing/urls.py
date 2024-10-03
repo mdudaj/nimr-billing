@@ -38,7 +38,6 @@ from .views import (
     PaymentListView,
     PaymentDetailView,
     check_control_number_request_status,
-    generate_bill_print_pdf,
     BillPrintPDFView,
     BillTransferPrintPDFView,
     BillReceiptPrintPDFView,
@@ -169,11 +168,6 @@ urlpatterns = [
         "check-control-number-request-status/<int:pk>/",
         check_control_number_request_status,
         name="check-control-number-request-status",
-    ),
-    path(
-        "generate-bill-pdf/<int:pk>/",
-        generate_bill_print_pdf,
-        name="generate-bill-print-pdf",
     ),
     path(
         "cancelled-bill/",

@@ -33,7 +33,6 @@
     <table class="ui basic striped table">
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Bill ID</th>
                 <th>Reason</th>
                 <th>Status</th>
@@ -45,7 +44,6 @@
         <tbody>
             {% for cancelled_bill in cancelled_bills %}
             <tr>
-                <td>{{ cancelled_bill.pk }}</td>
                 <td><a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}">{{ cancelled_bill.bill.bill_id }}</a></td>
                 <td>{{ cancelled_bill.reason }}</td>
                 <td>{{ cancelled_bill.get_status_display }}</td>
@@ -54,9 +52,6 @@
                 <td class="single line">
                     <a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}" class="ui icon large button primary">
                         <i class="icon info"></i>
-                    </a>
-                    <a href="{% url 'billing:cancelled-bill-delete' cancelled_bill.pk %}" class="ui icon large button negative">
-                        <i class="icon trash"></i>
                     </a>
                 </td>
             </tr>

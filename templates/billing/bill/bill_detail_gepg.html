@@ -63,7 +63,7 @@
                 </div>
             </div>
         </div>
-        {% if not bill.is_paid %}
+        {% if not bill.cntr_num %}
         <div class="ui clearing basic segment">
             <a href="{% url 'billing:bill-update' bill.pk %}" class="ui left floated primary button" tabindex="0">
                 Update

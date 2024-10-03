@@ -32,6 +32,8 @@ chromedriver-autoinstaller = "*"
 weasyprint = "*"
 inflect = "*"
 django-weasyprint = "*"
+qrcode = "*"
+pillow = "*"
 
 [dev-packages]
 

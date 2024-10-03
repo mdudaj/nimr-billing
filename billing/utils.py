@@ -2,6 +2,8 @@ import base64
 import functools
 import logging
 import os
+import qrcode
+import tempfile
 import uuid
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -11,12 +13,56 @@ from django.conf import settings
 from django.template.loader import get_template
 from django.utils import timezone
 from django_weasyprint.utils import django_url_fetcher
+from PIL import Image
 from weasyprint import HTML
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 
 logger = logging.getLogger(__name__)
+
+
+def generate_qr_code(data, logo_path=None):
+    """
+    Generate a QR code image for the provided data.
+    """
+    # Create a QR code image
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    # Create the QR code image
+    img_qr = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+
+    # Overlay the QR code image with a logo image if provided
+    if logo_path:
+        # Open the logo image
+        img_logo = Image.open(logo_path)
+
+        # Calculate the size of the logo image
+        qr_size = img_qr.size[0]
+        logo_size = int(qr_size * 0.3)  # 30% of the QR code size
+
+        # Resize the logo image
+        img_logo = img_logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+
+        # Calculate the position to place the logo image
+        pos = ((qr_size - logo_size) // 2, (qr_size - logo_size) // 2)
+
+        # Overlay the logo image on the QR code image
+        img_qr.paste(img_logo, pos, mask=img_logo)
+
+    # Save the QR code image to a temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    img_qr.save(temp_file, format="PNG")
+    temp_file.close()  # Close the file so WeasyPrint can access it
+
+    return temp_file.name
 
 
 def custom_url_fetcher(url, *args, **kwargs):

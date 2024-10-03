@@ -18,44 +18,170 @@
     <hr class="bold-line">
 
     <div class="transfer-details">
-        <div class="taxpayer-details">
-            <p><strong>(a). Remitter / Tax Payer Details:</strong></p>
-            <p>Name of Account Holder(s): ......................................................</p>
-            <p>Name of Commercial Bank: ...........................................................</p>
-            <p>Bank Account Number: .................................................................</p>
-            <p>Signatories:     1<sup>st</sup> Signatory: ................................... | 2<sup>nd</sup> Signatory: ....................................</p>
-        </div>
+        <table class="taxpayer-details-table">
+            <thead>
+                <tr>
+                    <th colspan="3"><strong>(a). Remitter / Tax Payer Details:</strong></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Name of Account Holder(s)</td>
+                    <td>:</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+                <tr>
+                    <td>Name of Commercial Bank</td>
+                    <td>:</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+                <tr>
+                    <td>Bank Account Number</td>
+                    <td>:</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <table class="signatories-table">
+            <tbody>
+                <tr>
+                    <td>Signatories</td>
+                    <td><hr class="dashed-line"></td>
+                    <td>|</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>1<sup>st</sup> Signatory</td>
+                    <td></td>
+                    <td>2<sup>nd</sup> Signatory</td>
+                </tr>
+            </tbody>
+        </table>
+        
 
         <hr class="bold-line">
 
         <div class="beneficiary-details">
-            <p><strong>(b). Beneficiary Details:</strong></p>
-            <p>National Institute for Medical Research (NIMR)</p>
-            <p>CRDB BANK PLC</p>
-            <p>Account Number: <strong>{{ bill.dept.account_num }}</strong></p>
-            <p>SWIFT Code: <strong>CORUTZTZ</strong></p>
-            <p>Control Number: <strong>{{ bill.cntr_num }}</strong></p>
-            <p>Beneficiary Account (Field 59 of MT103): <strong>{{ bill.dept.account_num }}</strong></p>
-            <p>Payment Reference (Field 70 of MT103): <strong>{{ bill.payment_ref }}</strong></p>
-            <p>Transfer Amount: <strong>{{ bill.amt }} ({{ bill.currency }})</strong></p>
-            <p>Amount in Words: <strong>{{ bill.amount_in_words }}</strong></p>
-            <p>Being payment for: <strong>{{ bill.customer.get_name }}</strong></p>
+            <table class="beneficiary-details-table">
+                <thead>
+                    <tr>
+                        <th><strong>(b). Beneficiary Details</strong></th>
+                        <th>:</th>
+                        <th>National Institute for Medical Research (NIMR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td></td>
+                        <td>:</td>
+                        <td>CRDB BANK PLC</td>
+                    </tr>
+                    <tr>
+                        <td>Account Number</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.dept.account_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>SWIFT Code</td>
+                        <td>:</td>
+                        <td><strong>CORUTZTZ</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Control Number</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.cntr_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Beneficiary Account (Field 59 of MT103)</td>
+                        <td>:</td>
+                        <td><strong>/{{ bill.dept.account_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Payment Reference (Field 70 of MT103)</td>
+                        <td>:</td>
+                        <td><strong>/ROC/{{ bill.cntr_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Transfer Amount</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.amt }} ({{ bill.currency }})</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Amount in Words</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.amount_in_words }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Being payment for</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.customer.get_name }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="qrcode-container">
+                <img src="file://{{ qr_code_path }}" alt="QR Code" class="qrcode">
+                <p>SCAN & PAY</p>
+            </div>
         </div>
 
         <hr class="bold-line">
 
         <div class="billed-items">
-            <p><strong>Billed Item ({{ bill.billed_items.count }}):</strong></p>
-            <p>{{ bill.billed_items.description }}</p>
+            <table class="billed-items-table">
+                <thead>
+                    <tr>
+                        <th colspan="3"><strong>Billed Item ({{ bill.billed_items.count }}):</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if bill.billed_items.count == 1 %}
+                        <tr>
+                            <td>1.</td>
+                            <td>{{ bill.billed_items.description }}</td>
+                            <td>{{ bill.billed_items.amount }}</td>
+                        </tr>
+                    {% else %}
+                        {% for item in bill.billed_items.items %}
+                            <tr>
+                                <td>{{ forloop.counter }}.</td>
+                                <td>{{ item.description }}</td>
+                                <td>{{ item.amount }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
 
         <hr class="bold-line">
 
         <div class="printed-details">
-            <p>Printed on: <strong>{{ print_date }}</strong></p>
-            <p>Expires on: <strong>{{ bill.expr_date|date:"d-M-Y" }}</strong></p>
-            <p>Printed By: <strong>{{ bill.gen_by }}</strong></p>
-            <p>Signature: ................................................</p>
+            <table class="printed-details-table">
+                <tbody>
+                    <tr>
+                        <td>Printed on</td>
+                        <td>:</td>
+                        <td><strong>{{ print_date }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Expires on</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.expr_date|date:"d-M-Y" }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Printed By</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.gen_by }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Signature</td>
+                        <td>:</td>
+                        <td><hr class="dashed-line"></strong></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="instructions-details">

@@ -10,6 +10,22 @@
             {% if is_update %}Update Bill Cancellation{% else %}Cancel Bill{% endif %}
         </h1>
     </div>
+
+    <!-- Messages Block -->
+    {% if messages %}
+    <div class="ui floating message">
+        <i class="close icon"></i>
+        <div class="ui middle aligned animated divided list">
+            {% for message in messages %}
+            <div class="item {{ message.tags }}">
+                <p>{{ message }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <!-- End of Messages Block -->
+     
     <form class="ui form" method="post"
         action="{% if is_update %}{% url 'billing:cancelled-bill-update' cancelledbill.pk %}{% else %}{% url 'billing:cancelled-bill-create' %}{% endif %}">
         {% csrf_token %}

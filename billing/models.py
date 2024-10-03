@@ -120,9 +120,9 @@ class Customer(TimeStampedModel, models.Model):
         return f"{self.first_name} {self.middle_name} {self.last_name}"
 
     def get_name(self):
-        # if self.middle_name is None:
-        #     return f"{self.first_name} {self.last_name}"
-        return f"{self.first_name} {self.last_name}"
+        if self.middle_name is None:
+            return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.middle_name} {self.last_name}"
 
 
 class ServiceProvider(TimeStampedModel, models.Model):
@@ -450,9 +450,13 @@ class Bill(TimeStampedModel, models.Model):
 
         return {
             "count": count,
-            "description": ", ".join(
-                [item.rev_src_itm.description for item in self.billitem_set.all()]
-            ),
+            "items": [
+                {
+                    "description": f"{item.rev_src_itm.description} - {self.payment_ref()}",
+                    "amount": item.rev_src_itm.amt,
+                }
+                for item in self.billitem_set.all()
+            ],
         }
 
     def amount_in_words(self):

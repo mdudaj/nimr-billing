@@ -34,7 +34,32 @@ h3, h5, h6 {
 
 .bill-details p, .billed-item p, .total-billed p {
     margin: 5px 0;
-    line-height: 1.6; /* Line spacing for bill details */
+    line-height: 1.5; /* Line spacing for bill details */
+}
+
+.bill-info-container {
+    display: flex;
+    justify-content: space-between; /* Adds space between the two divs */
+    align-items: flex-start; /* Align items to the top */
+}
+
+.bill-info {
+    width: 60%; /* Adjust the width of the bill info section */
+}
+
+.qrcode {
+    width: 30%; /* Adjust the width of the QR code section */
+    vertical-align: center;
+}
+
+.qrcode p {
+    font-size: 9px; /* Smaller font for QR code instructions */
+    text-align: center;
+    margin-top: 2px;
+}
+
+.qr-code {
+    max-width: 100%; /* Ensure the QR code scales appropriately */
 }
 
 .bill-description {
@@ -73,9 +98,101 @@ hr {
     content: "";
     display: table;
     clear: both;
-    padding-top: 100px;
 }
 
 .signature {
     margin-top: 20px;
+}
+
+table.billed-items-table {
+    width: 100%;
+    margin-top: 15px;
+    font-size: 12px;
+    border-collapse: collapse;
+}
+
+table.billed-items-table td {
+    padding: 5px 0;
+}
+
+table.billed-items-table td:first-child {
+    width: 10%;
+}
+
+table.billed-items-table td:last-child {
+    width: 30%;
+    text-align: right;
+    vertical-align: top;
+}
+
+table.total-billed-table {
+    width: 100%;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
+
+table.total-billed-table td {
+    padding: 5px 0;
+}
+
+table.total-billed-table td:first-child {
+    width: 30%;
+}
+
+table.total-billed-table td:last-child {
+    width: 70%;
+    text-align: right;
+    vertical-align: middle;
+}
+
+table.total-billed-table tr:last-child td {
+    text-align: left;
+}
+
+table.bill-info-table {
+    width: 100%;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
+
+table.bill-info-table td {
+    padding: 5px 0;
+}
+
+table.bill-info-table td:first-child {
+    width: 50%;
+}
+
+table.bill-info-table td:last-child {
+    width: 50%;
+    text-align: left;
+}
+
+table.bill-footer-info-table {
+    width: 100%;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
+
+table.bill-footer-info-table td {
+    padding: 5px 0;
+}
+
+table.bill-footer-info-table td:first-child {
+    width: 30%;
+}
+
+table.bill-footer-info-table td:last-child {
+    width: 70%;
+    text-align: left;
+}
+
+table.bill-footer-info-table tr:last-child td {
+    padding-top: 30px;
+}
+.signature-line {
+    float: left;
+    width: 50%;
+    margin: 0 auto;
+    border-bottom: 1px dashed #535252;
 }

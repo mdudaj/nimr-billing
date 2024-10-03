@@ -18,40 +18,113 @@
     <hr>
 
     <div class="bill-details">
-        <p><strong>Control Number</strong> : {{ bill.cntr_num }}</p>
-        <p><strong>Payment Ref</strong> : {{ bill.payment_ref }}</p>
-        <p><strong>Service Provider Code</strong> : {{ bill.service_provider.code }}</p>
-        
-        <div class="payer-info">
-            <p><strong>Payer Name</strong> : {{ bill.customer.get_name }}</p>
-            <p><strong>Payer Phone</strong> : {{ bill.customer.cell_num }}</p>
-        </div>
-
-        <div class="bill-description">
-            <p><strong>Bill Description</strong> :</p>
-            <p>{{ bill.description }}</p>
+        <div class="bill-info-container">
+            <div class="bill-info">
+                <table class="bill-info-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Control Number</strong></td>
+                            <td>: {{ bill.cntr_num }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Bill Ref</strong></td>
+                            <td>: {{ bill.payment_ref }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Service Provider Code</strong></td>
+                            <td>: {{ bill.service_provider.code }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Payer Name</strong></td>
+                            <td>: {{ bill.customer.get_name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Payer Phone</strong></td>
+                            <td>: {{ bill.customer.cell_num }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Bill Description</strong></td>
+                            <td>: {{ bill.description }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="qrcode">
+                <img src="file://{{ qr_code_path }}" alt="QR Code" class="qr-code">
+                <p>SCAN & PAY</p>
+            </div>
         </div>
 
         <hr class="bold-line">
 
         <div class="billed-item">
-            <p><strong>Billed Item ({{ bill.billed_items.count }})</strong> : {{ bill.billed_items.description }} : <strong>{{ bill.billed_items.amount }}</strong></p>
+            <p><strong>Billed Item ({{ bill.billed_items.count }})</strong> :</p>
+            <table class="billed-items-table">
+                <tbody>
+                    {% if bill.billed_items.count == 1 %}
+                        <tr>
+                            <td>1.</td>
+                            <td>{{ bill.billed_items.description }}</td>
+                            <td>{{ bill.billed_items.amount }}</td>
+                        </tr>
+                    {% else %}
+                        {% for item in bill.billed_items.items %}
+                            <tr>
+                                <td>{{ forloop.counter }}.</td>
+                                <td>{{ item.description }}</td>
+                                <td>{{ item.amount }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
 
         <hr class="bold-line">
 
         <div class="total-billed">
-            <p><strong>Total Billed Amount</strong> : {{ bill.amt }} ({{ bill.currency }})</p>
-            <p><strong>Amount in words</strong> : {{ bill.amount_in_words }}</p>
+            <table class="total-billed-table">
+                <tbody>
+                    <tr>
+                        <td><strong>Total Billed Amount</strong></td>
+                        <td>: {{ bill.amt }} ({{ bill.currency }})</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Amount in words</strong></td>
+                        <td>: {{ bill.amount_in_words }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
-        <p><strong>Expires on</strong> : {{ bill.expr_date|date:"d-M-Y" }}</p>
-        <p><strong>Prepared By</strong> : {{ bill.gen_by }}</p>
-        <p><strong>Collection Center</strong> : {{ bill.dept.name }}</p>
-        <p><strong>Printed By</strong> : {{ bill.gen_by }}</p>
-        <p><strong>Printed On</strong> : {{ print_date }}</p>
-
-        <p><strong>Signature</strong> : ........................................</p>
+        <table class="bill-footer-info-table">
+            <tbody>
+                <tr>
+                    <td><strong>Expires On</strong></td>
+                    <td>: {{ bill.expr_date|date:"d-M-Y" }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Prepared By</strong></td>
+                    <td>: {{ bill.gen_by }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Collection Center</strong></td>
+                    <td>: {{ bill.dept.name }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Printed By</strong></td>
+                    <td>: {{ bill.gen_by }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Printed On</strong></td>
+                    <td>: {{ bill.gen_date|date:"d-M-Y" }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Signature</strong></td>
+                    <td><hr class="signature-line" ></td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <div class="payment-instructions">

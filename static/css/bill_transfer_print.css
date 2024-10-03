@@ -4,7 +4,7 @@
     @bottom-center {
         content: "Government Payment Gateway © 2024 All Rights Reserved (GePG)";
         color: rgb(2, 74, 146);
-        font-size: 12px;
+        font-size: 11px;
     }
 }
 
@@ -12,7 +12,7 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 20px;
-    font-size: 14px;
+    font-size: 11px;
     line-height: 1.4;
 }
 
@@ -31,7 +31,7 @@ h3, h4, h5 {
 }
 
 .bold-line {
-    border: 1px dashed #000;
+    border: 1px dashed #7e7b7b;
     margin: 15px 0;
 }
 
@@ -44,10 +44,186 @@ h3, h4, h5 {
 }
 
 .instructions-details {
-    font-size: 12px;
+    font-size: 10px;
 }
 
-footer {
+.billed-items-table {
+    width: 100%;
+    margin-top: 15px;
+    font-size: 11px;
+    border-collapse: collapse;
+    line-height: 1.1;
+}
+
+.billed-items-table td {
+    padding: 5px 0;
+    margin: 0;
+}
+
+.billed-items-table td:first-child {
+    width: 2%;
+}
+
+.billed-items-table td:nth-child(2) {
+    width: 73%;
+}
+
+.billed-items-table td:last-child {
+    width: 25%;
+    text-align: right;
+    vertical-align: top;
+}
+
+.taxpayer-details-table,
+.signatories-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+}
+
+.taxpayer-details-table th,
+.taxpayer-details-table td,
+.signatories-table td {
+    text-align: left;
+}
+
+.taxpayer-details-table td,
+.signatories-table td:first-child {
+    text-indent: 5%;
+}
+
+.taxpayer-details-table tr {
+    line-height: 1.6;
+}
+
+.taxpayer-details-table td:first-child {
+    width: 30%;
+}
+
+.taxpayer-details-table td:nth-child(2) {
+    width: 1%;
+    text-align: right;
+    margin: 0;
+}
+
+.taxpayer-details-table td:nth-child(3) {
+    width: 69%;
+    vertical-align: bottom;
+    margin: 0;
+    text-indent: 0%;
+}
+
+.signatories-table tr:nth-child(1) td:first-child {
+    width:30%;
+}
+
+.signatories-table tr:nth-child(1) td:nth-child(2),
+.signatories-table tr:nth-child(1) td:nth-child(4) {
+    vertical-align: bottom; /* Ensures dashed lines align at the bottom */
+}
+
+.signatories-table tr:nth-child(1) td:nth-child(3) {
+    width: 1%;
     text-align: center;
-    margin-top: 20px;
+}
+
+.signatories-table tr:nth-child(2) td {
+    text-align: center;
+    vertical-align: top;
+    margin: 0;
+    padding: 0;
+}
+
+.signatories-table td {
+    padding: 5px;
+}
+
+.beneficiary-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-top: 15px;
+}
+
+.beneficiary-details-table {
+    width: 70%;
+    border-collapse: collapse;
+}
+
+.beneficiary-details-table td, 
+.beneficiary-details-table th {
+    padding: 5px;
+}
+
+/* First four rows' first column text indented by 5% */
+.beneficiary-details-table tr:nth-child(-n+4) td:first-child {
+    text-indent: 5%;
+}
+
+.beneficiary-details-table td:first-child {
+    width: 40%;
+}
+
+.beneficiary-details-table td:nth-child(2) {
+    width: 1%;
+    text-align: right;
+}
+
+.beneficiary-details-table td:nth-child(3) {
+    width: 29%;
+}
+
+/* QR code container */
+.qrcode-container {
+    width: 30%;
+    text-align: center;
+}
+
+.qrcode {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 10px;
+}
+
+.qrcode-container p {
+    margin: 0;
+    font-weight: bold;
+}
+
+.printed-details-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    text-align: left;
+}
+
+.printed-details-table td {
+    padding: 5px;
+    vertical-align: bottom;
+}
+
+.printed-details-table td:first-child {
+    width: 30%;
+}
+
+.printed-details-table td:nth-child(2) {
+    width: 1%;
+    text-align: right;
+    margin: 0;
+}
+
+.printed-details-table td:nth-child(3) {
+    width: 69%;
+    margin: 0;
+    vertical-align: bottom;
+}
+
+.dashed-line {
+    border: 1px dashed #363636;
+    margin: 0; /* Removed margin to make the line sit closer to the text */
+    width: 100%;
+    opacity: 1;
+    display: block;
+    position: relative;
+    bottom: 0; /* Ensures it aligns at the bottom of the cell */
 }
