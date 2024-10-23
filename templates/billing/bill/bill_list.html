@@ -35,22 +35,22 @@
         <thead>
             <tr>
                 <th>Bill Number</th>
-                <th>Issue Date</th>
-                <th>Customer</th>
                 <th>Description</th>
-                <th>Amount</th>
                 <th>Control Number</th>
                 <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for bill in bill_list %}
             <tr data-bill-id="{{ bill.id }}">
                 <td><a href="{% url 'billing:bill-detail' bill.id %}">{{ bill.bill_id }}</a></td>
-                <td>{{ bill.gen_date }}</td>
-                <td>{{ bill.customer.get_name }}</td>
-                <td>{{ bill.description }}</td>
-                <td><small>{{ bill.currency }}</small> {{ bill.amt }}</td>
+                <td>
+                    <h5 class="ui header">{{ bill.description }}</h5>
+                    <strong>Amount:</strong> ({{ bill.currency }}) {{ bill.amt }} <br>
+                    <strong>Issue Date:</strong> {{ bill.gen_date }} <br>
+                    <strong>Customer:</strong> {{ bill.customer.get_name }}<br>
+                </td>
         
                 {% if bill.cntr_num %}
                 <td>{{ bill.cntr_num }}</td>
@@ -63,6 +63,12 @@
                 {% else %}
                 <td><div class="ui red label">Unpaid</div></td>
                 {% endif %}
+
+                <td>
+                    <a href="" class="ui icon button" data-tooltip="Replace Control Number" data-inverted="">
+                        <i class="redo alternate icon"></i>
+                    </a>
+                </td>
             </tr>
             {% endfor %}
         </tbody>        

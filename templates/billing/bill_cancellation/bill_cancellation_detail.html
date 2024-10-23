@@ -19,17 +19,17 @@
     <div class="ui segment">
         <h2 class="ui dividing header">Bill Information</h2>
         <p><strong>Bill ID:</strong> {{ cancelled_bill.bill.bill_id }}</p>
+        <p><strong>Customer:</strong> {{ cancelled_bill.bill.customer.get_name }}</p>
         <p><strong>Original Amount:</strong> {{ cancelled_bill.bill.amount }}</p>
         <p><strong>Issue Date:</strong> {{ cancelled_bill.bill.issue_date }}</p>
     </div>
 
     <div class="ui segment">
         <h2 class="ui dividing header">Cancellation Details</h2>
+        <p><strong>Cancelled Control Number:</strong> {{ cancelled_bill.cust_cntr_num }}</p>
         <p><strong>Reason for Cancellation:</strong> {{ cancelled_bill.reason }}</p>
         <p><strong>Status:</strong> {{ cancelled_bill.get_status_display }}</p>
-        <p><strong>Cancelled By:</strong> {{ cancelled_bill.gen_by.get_full_name }}</p>
-        <p><strong>Approved By:</strong> {{ cancelled_bill.appr_by.get_full_name }}</p>
-        <p><strong>Cancelled At:</strong> {{ cancelled_bill.created_at }}</p>
+        <p><strong>Cancelled On:</strong> {{ cancelled_bill.created_at }}</p>
     </div>
 
     <div class="ui segment">

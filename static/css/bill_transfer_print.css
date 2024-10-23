@@ -2,7 +2,7 @@
     size: A4;
     margin: 20mm;
     @bottom-center {
-        content: "Government Payment Gateway © 2024 All Rights Reserved (GePG)";
+        content: "National Institute for Medical Research © 2024 All Rights Reserved (NIMR)";
         color: rgb(2, 74, 146);
         font-size: 11px;
     }

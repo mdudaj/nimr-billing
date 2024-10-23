@@ -2,7 +2,7 @@
     size: A4;
     margin: 20mm;
     @bottom-center {
-        content: "Government Payment Gateway © 2024 All Rights Reserved (GePG)";
+        content: "National Institute for Medical Research © 2024 All Rights Reserved (NIMR)";
         font-size: 12px;
         margin-top: 30px;
     }
@@ -37,31 +37,60 @@ h3 {
     margin: 10px 0;
 }
 
-table {
+.receipt-details-header, 
+.receipt-details-footer,
+.billed-items {
     width: 100%;
     margin-top: 15px;
     font-size: 11px;
     border-collapse: collapse;
 }
 
-td {
+.receipt-details-header td, 
+.receipt-details-footer td {
     padding: 5px 0;
 }
 
-td:first-child {
+.receipt-details-header td:first-child, 
+.receipt-details-footer td:first-child {
     width: 40%;
 }
 
-td:last-child {
+.receipt-details-header td:last-child, 
+.receipt-details-footer td:last-child {
     width: 60%;
 }
 
-tr:last-child td {
+.receipt-details-header tr:last-child td, 
+.receipt-details-footer tr:last-child td {
    padding-top: 30px;
+}
+
+.billed-items td:first-child {
+    width: 40%;
+}
+
+.billed-items td:nth-child(2) {
+    width: 40%;
+}
+
+.billed-items td:last-child {
+    width: 20%;
+    text-align: right;
 }
 
 .signature-line {
     width: 100%;
     margin: 0 auto;
     border-bottom: 1px dashed #535252;
+}
+
+.dashed-line {
+    border: 1px dashed #363636;
+    margin: 0; /* Removed margin to make the line sit closer to the text */
+    width: 100%;
+    opacity: 1;
+    display: block;
+    position: relative;
+    bottom: 0; /* Ensures it aligns at the bottom of the cell */
 }

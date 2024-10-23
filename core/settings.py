@@ -271,8 +271,11 @@ SP_CODE = os.environ.get("SP_CODE")
 SUB_SP_CODE = os.environ.get("SUB_SP_CODE")
 SP_SYS_ID = os.environ.get("SP_SYS_ID")
 
+GEPG_PUBLIC_KEY = os.environ.get("GEPG_PUBLIC_KEY")
+GEPG_PUBLIC_KEY_PASSWORD = os.environ.get("GEPG_PUBLIC_KEY_PASSWORD")
+
 # Encryption Key
-ENCRYPTION_KEY_FILE = os.environ.get("ENCRYPTION_KEY_FILE")
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 ENCRYPTION_KEY_PASSWORD = os.environ.get("ENCRYPTION_KEY_PASSWORD")
 
 # Email Configuration

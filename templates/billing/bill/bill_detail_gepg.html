@@ -35,6 +35,7 @@
         <div class="ui clearing segment">
             <div class="ui grid">
                 <div class="eight wide column">
+                    <h4 class="ui header">Bill Number: {{ bill.bill_id }}</h4>
                     {% if bill.cntr_num %}
                     <h4 class="ui header">Control Number: {{ bill.cntr_num }}</h4>
                     {% elif bill.get_cntr_num_request_status.status == 'ERROR' %}

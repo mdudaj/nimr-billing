@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.http import JsonResponse
 from celery import shared_task
 from celery.utils.log import get_task_logger
@@ -33,9 +33,16 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def send_mail_notification(email, subject, message):
-    # Send email notification to the user
-    send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
+def send_mail_notification(email, subject, message, attachment=None):
+    # Create an EmailMessage object
+    email_obj = EmailMessage(subject, message, settings.EMAIL_HOST_USER, [email])
+
+    # Attach a file if provided
+    if attachment:
+        email_obj.attach_file(attachment)
+
+    # Send the email
+    email_obj.send()
 
 
 @shared_task(
@@ -59,7 +66,7 @@ def send_bill_control_number_request(self, req_id, bill_id):
 
         # Load the private key for signing the request
         private_key = load_private_key(
-            settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+            settings.ENCRYPTION_KEY, settings.ENCRYPTION_KEY_PASSWORD
         )
 
         # Compose the bill control number request payload
@@ -421,7 +428,7 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code, trxDt)
 
     # Load private key for signing the request
     private_key = load_private_key(
-        settings.ENCRYPTION_KEY_FILE, settings.ENCRYPTION_KEY_PASSWORD
+        settings.ENCRYPTION_KEY, settings.ENCRYPTION_KEY_PASSWORD
     )
 
     try:
@@ -569,7 +576,7 @@ def process_bill_reconciliation_response(
             # Update the PaymentGatewayLog object with status and description
             PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
                 status="SUCCESS",
-                status_desc=f"Bill reconciliation response processed successfully. {len(pmt_trx_dtls)} payment transactions reconciled.",
+                status_desc=f"Bill reconciliation response processed successfully. {len(pmt_trx_dtls)} reconciliation data.",
             )
 
         # Log the successful reconciliation response

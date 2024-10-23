@@ -7,6 +7,7 @@ from .models import (
     RevenueSourceItem,
     Bill,
     BillItem,
+    CancelledBill,
     SystemInfo,
     PaymentReconciliation,
 )
@@ -131,6 +132,12 @@ class BaseBillItemInlineFormSet(forms.BaseInlineFormSet):
 BillItemInlineFormSet = forms.inlineformset_factory(
     Bill, BillItem, form=BillItemForm, formset=BaseBillItemInlineFormSet, extra=1
 )
+
+
+class BillCancellationForm(forms.ModelForm):
+    class Meta:
+        model = CancelledBill
+        fields = ["reason"]
 
 
 class PaymentReconciliationForm(forms.ModelForm):

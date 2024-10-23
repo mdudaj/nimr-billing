@@ -22,6 +22,16 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 logger = logging.getLogger(__name__)
 
 
+def clean_data(value):
+    """
+    Clean the input value by stripping leading/trailing whitespace or newline characters.
+    If the value is not a string, it is returned as-is.
+    """
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
 def generate_qr_code(data, logo_path=None):
     """
     Generate a QR code image for the provided data.
@@ -651,56 +661,137 @@ def parse_bill_reconciliation_request_acknowledgement(response_data):
 def parse_bill_reconciliation_response(response_data):
     """
     Parse the reconciliation response received from the Payment Gateway API.
+    Clean the extracted data by removing unnecessary whitespace or newline characters.
     """
-
     try:
-        # parse the XML response data
+        # Parse the XML response data
         root = ET.fromstring(response_data)
 
         # Extract relevant information from the response
-        res_id = root.find(".//ResId").text
-        req_id = root.find(".//ReqId").text
-        pay_sts_code = root.find(".//PayStsCode").text
-        pay_sts_desc = root.find(".//PayStsDesc").text
+        res_id = clean_data(
+            root.find(".//ResId").text if root.find(".//ResId") is not None else ""
+        )
+        req_id = clean_data(
+            root.find(".//ReqId").text if root.find(".//ReqId") is not None else ""
+        )
+        pay_sts_code = clean_data(
+            root.find(".//PayStsCode").text
+            if root.find(".//PayStsCode") is not None
+            else ""
+        )
+        pay_sts_desc = clean_data(
+            root.find(".//PayStsDesc").text
+            if root.find(".//PayStsDesc") is not None
+            else ""
+        )
 
         # Extract a list of reconciliation records from the response
         pmt_trx_dtls = []
 
         for pmt_trx_dtl in root.findall(".//PmtTrxDtl"):
+            # Handle each field safely in case it's missing
             pmt_trx_dtl_data = {
-                "cust_cntr_num": pmt_trx_dtl.find("CustCntrNum").text,
-                "grp_bill_id": pmt_trx_dtl.find("GrpBillId").text,
-                "sp_code": pmt_trx_dtl.find("SpCode").text,
-                "bill_id": pmt_trx_dtl.find("BillId").text,
-                "bill_ctr_num": pmt_trx_dtl.find("BillCtrNum").text,
-                "psp_code": pmt_trx_dtl.find("PspCode").text,
-                "psp_name": pmt_trx_dtl.find("PspName").text,
-                "trx_id": pmt_trx_dtl.find("TrxId").text,
-                "payref_id": pmt_trx_dtl.find("PayRefId").text,
-                "bill_amt": pmt_trx_dtl.find("BillAmt").text,
-                "paid_amt": pmt_trx_dtl.find("PaidAmt").text,
-                "bill_pay_opt": pmt_trx_dtl.find("BillPayOpt").text,
-                "currency": pmt_trx_dtl.find("Ccy").text,
-                "coll_acc_num": pmt_trx_dtl.find("CollAccNum").text,
-                "trx_date": datetime.fromisoformat(pmt_trx_dtl.find("TrxDtTm").text),
-                "usd_pay_chnl": pmt_trx_dtl.find("UsdPayChnl").text,
-                "trdpty_trx_id": pmt_trx_dtl.find("TrdPtyTrxId").text,
-                "qt_ref_id": (
+                "cust_cntr_num": clean_data(
+                    pmt_trx_dtl.find("CustCntrNum").text
+                    if pmt_trx_dtl.find("CustCntrNum") is not None
+                    else ""
+                ),
+                "grp_bill_id": clean_data(
+                    pmt_trx_dtl.find("GrpBillId").text
+                    if pmt_trx_dtl.find("GrpBillId") is not None
+                    else ""
+                ),
+                "sp_code": clean_data(
+                    pmt_trx_dtl.find("SpCode").text
+                    if pmt_trx_dtl.find("SpCode") is not None
+                    else ""
+                ),
+                "bill_id": clean_data(
+                    pmt_trx_dtl.find("BillId").text
+                    if pmt_trx_dtl.find("BillId") is not None
+                    else ""
+                ),
+                "bill_ctr_num": clean_data(
+                    pmt_trx_dtl.find("BillCtrNum").text
+                    if pmt_trx_dtl.find("BillCtrNum") is not None
+                    else ""
+                ),
+                "psp_code": clean_data(
+                    pmt_trx_dtl.find("PspCode").text
+                    if pmt_trx_dtl.find("PspCode") is not None
+                    else ""
+                ),
+                "psp_name": clean_data(
+                    pmt_trx_dtl.find("PspName").text
+                    if pmt_trx_dtl.find("PspName") is not None
+                    else ""
+                ),
+                "trx_id": clean_data(
+                    pmt_trx_dtl.find("TrxId").text
+                    if pmt_trx_dtl.find("TrxId") is not None
+                    else ""
+                ),
+                "payref_id": clean_data(
+                    pmt_trx_dtl.find("PayRefId").text
+                    if pmt_trx_dtl.find("PayRefId") is not None
+                    else ""
+                ),
+                "bill_amt": float(
+                    pmt_trx_dtl.find("BillAmt").text
+                    if pmt_trx_dtl.find("BillAmt") is not None
+                    else 0.0
+                ),
+                "paid_amt": float(
+                    pmt_trx_dtl.find("PaidAmt").text
+                    if pmt_trx_dtl.find("PaidAmt") is not None
+                    else 0.0
+                ),
+                "bill_pay_opt": clean_data(
+                    pmt_trx_dtl.find("BillPayOpt").text
+                    if pmt_trx_dtl.find("BillPayOpt") is not None
+                    else ""
+                ),
+                "currency": clean_data(
+                    pmt_trx_dtl.find("Ccy").text
+                    if pmt_trx_dtl.find("Ccy") is not None
+                    else ""
+                ),
+                "coll_acc_num": clean_data(
+                    pmt_trx_dtl.find("CollAccNum").text
+                    if pmt_trx_dtl.find("CollAccNum") is not None
+                    else ""
+                ),
+                "trx_date": (
+                    datetime.fromisoformat(pmt_trx_dtl.find("TrxDtTm").text)
+                    if pmt_trx_dtl.find("TrxDtTm") is not None
+                    else None
+                ),
+                "usd_pay_chnl": clean_data(
+                    pmt_trx_dtl.find("UsdPayChnl").text
+                    if pmt_trx_dtl.find("UsdPayChnl") is not None
+                    else ""
+                ),
+                "trdpty_trx_id": clean_data(
+                    pmt_trx_dtl.find("TrdPtyTrxId").text
+                    if pmt_trx_dtl.find("TrdPtyTrxId") is not None
+                    else ""
+                ),
+                "qt_ref_id": clean_data(
                     pmt_trx_dtl.find("QtRefId").text
                     if pmt_trx_dtl.find("QtRefId") is not None
                     else ""
                 ),
-                "pyr_cell_num": (
+                "pyr_cell_num": clean_data(
                     pmt_trx_dtl.find("PyrCellNum").text
                     if pmt_trx_dtl.find("PyrCellNum") is not None
                     else ""
                 ),
-                "pyr_email": (
+                "pyr_email": clean_data(
                     pmt_trx_dtl.find("PyrEmail").text
                     if pmt_trx_dtl.find("PyrEmail") is not None
                     else ""
                 ),
-                "pyr_name": (
+                "pyr_name": clean_data(
                     pmt_trx_dtl.find("PyrName").text
                     if pmt_trx_dtl.find("PyrName") is not None
                     else ""
@@ -709,9 +800,13 @@ def parse_bill_reconciliation_response(response_data):
             pmt_trx_dtls.append(pmt_trx_dtl_data)
 
         return res_id, req_id, pay_sts_code, pay_sts_desc, pmt_trx_dtls
+
+    except ET.ParseError as e:
+        raise Exception(f"XML parsing error: {str(e)}")
+    except ValueError as e:
+        raise Exception(f"Date format error: {str(e)}")
     except Exception as e:
-        # If parsing fails, raise an exception
-        raise Exception("Error parsing reconciliation response: {}".format(str(e)))
+        raise Exception(f"Error parsing reconciliation response: {str(e)}")
 
 
 def compose_bill_cancellation_payload(

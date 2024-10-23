@@ -117,12 +117,12 @@ class Customer(TimeStampedModel, models.Model):
     def __str__(self):
         if self.middle_name is None:
             return f"{self.first_name} {self.last_name}"
-        return f"{self.first_name} {self.middle_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"
 
     def get_name(self):
         if self.middle_name is None:
             return f"{self.first_name} {self.last_name}"
-        return f"{self.first_name} {self.middle_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"
 
 
 class ServiceProvider(TimeStampedModel, models.Model):
@@ -325,8 +325,8 @@ class Bill(TimeStampedModel, models.Model):
     pay_type = models.PositiveSmallIntegerField(
         choices=PAYMENT_TYPES, verbose_name=_("Payment Type"), default=2
     )
-    description = models.CharField(
-        max_length=500, blank=True, null=True, verbose_name=_("Bill Description")
+    description = models.TextField(
+        blank=True, null=True, verbose_name=_("Bill Description")
     )
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, verbose_name=_("Customer")
@@ -410,7 +410,7 @@ class Bill(TimeStampedModel, models.Model):
             self.gen_date = timezone.now()
 
             # Generate the bill ID using the department code and the generation date
-            self.bill_id = f"{self.dept.code}{self.gen_date.strftime('%Y%m%d%H%M%S')}"
+            self.bill_id = f"{self.dept.service_provider.code[-3:]}{self.gen_date.strftime('%Y%m%d%H%M%S')}"
             self.grp_bill_id = self.bill_id
 
         # Set the bill expiry date to 30 days from the generation date
@@ -445,7 +445,7 @@ class Bill(TimeStampedModel, models.Model):
             return {
                 "count": count,
                 "description": f"{self.billitem_set.first().rev_src_itm.description} - {self.payment_ref()}",
-                "amount": self.billitem_set.first().rev_src_itm.amt,
+                "amount": self.billitem_set.first().amt,
             }
 
         return {
@@ -453,7 +453,7 @@ class Bill(TimeStampedModel, models.Model):
             "items": [
                 {
                     "description": f"{item.rev_src_itm.description} - {self.payment_ref()}",
-                    "amount": item.rev_src_itm.amt,
+                    "amount": item.amt,
                 }
                 for item in self.billitem_set.all()
             ],
@@ -527,6 +527,12 @@ class BillItem(TimeStampedModel, models.Model):
         default=0.00,
         verbose_name=_("Bill Item Miscellaneous Amount"),
     )
+    penalty_amt = models.DecimalField(
+        max_digits=32,
+        decimal_places=2,
+        default=0.00,
+        verbose_name=_("Bill Item Penalty Amount"),
+    )
 
     class Meta:
         verbose_name = _("Bill Item")
@@ -538,7 +544,10 @@ class BillItem(TimeStampedModel, models.Model):
 
     def save(self, *args, **kwargs):
         self.description = self.rev_src_itm.description
-        self.amt = self.qty * self.rev_src_itm.amt
+        if self.penalty_amt > 0:
+            self.amt = (self.qty * self.rev_src_itm.amt) + self.penalty_amt
+        else:
+            self.amt = self.qty * self.rev_src_itm.amt
         self.eqv_amt = self.amt
         self.misc_amt = self.amt
         super(BillItem, self).save(*args, **kwargs)
@@ -636,6 +645,9 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
     # bill = models.ForeignKey(Bill, on_delete=models.CASCADE, verbose_name=_("Bill"))
     cust_cntr_num = models.BigIntegerField(verbose_name=_("Customer Control Number"))
     grp_bill_id = models.CharField(max_length=100, verbose_name=_("Group Bill ID"))
+    sp_code = models.CharField(
+        max_length=10, verbose_name=_("Service Provider Code"), blank=True, null=True
+    )
     bill_id = models.CharField(max_length=100, verbose_name=_("Bill ID"))
     bill_ctr_num = models.BigIntegerField(verbose_name=_("Bill Control Number"))
     psp_code = models.CharField(
@@ -674,6 +686,8 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
         help_text=_(
             "Third Party Receipt such as Issuing Bank authorization Identification, MNO Receipt, Aggregator Receipt etc."
         ),
+        null=True,
+        blank=True,
     )
     qt_ref_id = models.CharField(
         max_length=100,
@@ -821,7 +835,15 @@ class CancelledBill(TimeStampedModel, models.Model):
     )
 
     bill = models.OneToOneField(
-        Bill, on_delete=models.CASCADE, verbose_name=_("Bill"), primary_key=True
+        Bill,
+        on_delete=models.CASCADE,
+        verbose_name=_("Cancelled Bill"),
+        primary_key=True,
+    )
+    cust_cntr_num = models.BigIntegerField(
+        verbose_name=_("Cancelled Customer Control Number"),
+        blank=True,
+        null=True,
     )
     reason = models.TextField(
         verbose_name=_("Cancellation Reason"),
@@ -856,4 +878,4 @@ class CancelledBill(TimeStampedModel, models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Cancelled Bill - {self.bill.bill_id}"
+        return f"Cancelled Bill - {self.bill.bill_id if self.bill else 'N/A'}"
