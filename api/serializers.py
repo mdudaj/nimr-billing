@@ -1,3 +1,4 @@
+import logging
 import re
 from rest_framework import serializers
 from billing.models import (
@@ -8,6 +9,9 @@ from billing.models import (
     RevenueSourceItem,
     SystemInfo,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class BillSerializer(serializers.ModelSerializer):

@@ -1,3 +1,4 @@
+import logging
 from django.views.generic import View
 
 from rest_framework import viewsets, status
@@ -13,6 +14,9 @@ from .serializers import BillSerializer
 from .models import BillCntrlNum, BillPayment
 
 
+logger = logging.getLogger(__name__)
+
+
 class BillSubmissionView(viewsets.ModelViewSet):
     permission_classes = [HasAPIKey]
     serializer_class = BillSerializer
@@ -22,8 +26,14 @@ class BillSubmissionView(viewsets.ModelViewSet):
             bill_data = request.data
             bill_serializer = BillSerializer(data=bill_data)
 
+            logger.info(f"Received bill data: {bill_data}")
+
             if bill_serializer.is_valid():
                 bill = bill_serializer.save()
+
+                logger.info(
+                    f"Bill saved successfully: {bill.bill_id} - {bill_serializer.validated_data}"
+                )
 
                 # Generate request id
                 req_id = generate_request_id()

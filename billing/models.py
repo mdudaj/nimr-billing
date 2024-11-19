@@ -21,6 +21,49 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
+class Currency(TimeStampedModel, models.Model):
+    """Currency Information."""
+
+    code = models.CharField(max_length=3, unique=True, verbose_name="Currency Code")
+    name = models.CharField(max_length=50, verbose_name="Currency Name")
+    symbol = models.CharField(
+        max_length=5, verbose_name="Currency Symbol", blank=True, null=True
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Currency"
+        verbose_name_plural = "Currencies"
+        ordering = ["code"]
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+class ExchangeRate(TimeStampedModel, models.Model):
+    """Store Daily Currency Exchange Rate Information."""
+
+    currency = models.ForeignKey(
+        Currency,
+        on_delete=models.CASCADE,
+        verbose_name="Currency",
+        related_name="exchange_rates",
+    )
+    trx_date = models.DateField(verbose_name="Transaction Date")
+    buying_rate = models.DecimalField(
+        max_digits=32, decimal_places=2, verbose_name="Buying Rate"
+    )
+    selling_rate = models.DecimalField(
+        max_digits=32, decimal_places=2, verbose_name="Selling Rate"
+    )
+
+    class Meta:
+        verbose_name = "Exchange Rate"
+        verbose_name_plural = "Exchange Rates"
+        unique_together = ["currency", "trx_date"]
+        ordering = ["-trx_date"]
+
+
 class SystemInfo(TimeStampedModel, models.Model):
     """Integrating System's Information."""
 
@@ -147,7 +190,7 @@ class ServiceProvider(TimeStampedModel, models.Model):
 
 
 class BillingDepartment(TimeStampedModel, models.Model):
-    """Billing Department Collection Center."""
+    """Billing Department Collection Center Information."""
 
     service_provider = models.ForeignKey(
         ServiceProvider, on_delete=models.CASCADE, verbose_name=_("Service Provider")
@@ -567,7 +610,10 @@ class Payment(TimeStampedModel, models.Model):
         max_length=200, verbose_name=_("Payment Service Provider Name")
     )
     trx_id = models.CharField(
-        max_length=100, verbose_name=_("Payment Service Provider Transaction ID")
+        max_length=100,
+        verbose_name=_("Payment Service Provider Transaction ID"),
+        null=True,
+        blank=True,
     )
     payref_id = models.CharField(
         max_length=100, verbose_name=_("Payment receipt issued by GEPG")
@@ -593,6 +639,8 @@ class Payment(TimeStampedModel, models.Model):
         help_text=_(
             "Third Party Receipt such as Issuing Bank authorization Identification, MNO Receipt, Aggregator Receipt etc."
         ),
+        null=True,
+        blank=True,
     )
     pyr_name = models.CharField(
         max_length=200,
@@ -719,7 +767,7 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
         ordering = ["trx_date"]
 
     def __str__(self):
-        return f"Payment Reconciliation for Bill ID - {self.bill.bill_id}, Control Number - {self.cust_cntr_num} paid. Amount - {self.paid_amt}"
+        return f"Payment Reconciliation for Bill ID - {self.bill_id}, Control Number - {self.cust_cntr_num} paid. Amount - {self.paid_amt}"
 
 
 class PaymentGatewayLog(TimeStampedModel, models.Model):

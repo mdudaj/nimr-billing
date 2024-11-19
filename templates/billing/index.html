@@ -1,7 +1,75 @@
-{% extends 'semantic-ui/layouts/base.html' %} {% load static %}
+{% extends 'semantic-ui/layouts/base.html' %} 
+{% load static %}
 
-{% block title %}Billing System Dashboard{% endblock title %}
+{% block title %}Billing Dashboard{% endblock title %}
 
 {% block content %}
+<div class="ui container dashboard-container">
+    <div class="ui three stackable cards">
+        <!-- Total paid TZS invoices -->
+        <div class="ui card">
+            <div class="content">
+                <div class="header">Total Paid TZS Invoices</div>
+                <div class="description">
+                    <h3 class="ui green header">{{ total_paid_tzs_invoices }}</h3>
+                    <p>{{ paid_tzs_invoices_count }} Invoices Paid</p>
+                </div>
+            </div>
+        </div>
 
+        <!-- Total paid USD invoices -->
+        <div class="ui card">
+            <div class="content">
+                <div class="header">Total Paid USD Invoices</div>
+                <div class="description">
+                    <h3 class="ui green header">{{ total_paid_usd_invoices }}</h3>
+                    <p>{{ paid_usd_invoices_count }} Invoices Paid</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total unpaid TZS invoices -->
+        <div class="ui card">
+            <div class="content">
+                <div class="header">Total Unpaid TZS Invoices</div>
+                <div class="description">
+                   <h3 class="ui red header">{{ total_unpaid_tzs_invoices }}</h3>
+                    <p>{{ unpaid_tzs_invoices_count }} Invoices Unpaid</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total unpaid USD invoices -->
+        <div class="ui card">
+            <div class="content">
+                <div class="header">Total Unpaid USD Invoices</div>
+                <div class="description">
+                    <h3 class="ui red header">{{ total_unpaid_usd_invoices }}</h3>
+                    <p>{{ unpaid_usd_invoices_count }} Invoices Unpaid</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total TZS revenues -->
+        <div class="ui card">
+            <div class="content">
+                <div class="header">Total TZS Revenues</div>
+                <div class="description">
+                    <h3 class="ui blue header">{{ total_tzs_revenues }}</h3>
+                    <p>All Time TZS revenue</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total USD revenues -->
+        <div class="ui card">
+            <div class="content">
+                <div class="header">Total USD Revenues</div>
+                <div class="description">
+                    <h1>{{ total_usd_revenues }}</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock content %}
