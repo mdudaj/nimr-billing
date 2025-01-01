@@ -1,11 +1,10 @@
 import inflect
-
-from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
-from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
+from django.db import models
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 # from rest_framework_api_key.models import AbstractAPIKey
 
@@ -50,10 +49,10 @@ class ExchangeRate(TimeStampedModel, models.Model):
         related_name="exchange_rates",
     )
     trx_date = models.DateField(verbose_name="Transaction Date")
-    buying_rate = models.DecimalField(
+    buying = models.DecimalField(
         max_digits=32, decimal_places=2, verbose_name="Buying Rate"
     )
-    selling_rate = models.DecimalField(
+    selling = models.DecimalField(
         max_digits=32, decimal_places=2, verbose_name="Selling Rate"
     )
 
@@ -292,6 +291,52 @@ class RevenueSourceItem(TimeStampedModel, models.Model):
             return item
         except cls.DoesNotExist:
             return None
+
+    def save(self, *args, **kwargs):
+        # Ensure amt updates create a new entry in the RevenueSourceItemPriceHistory table.
+        if self.pk:
+            # Check if the amount has changed
+            original_item = RevenueSourceItem.objects.get(pk=self.pk)
+            if original_item.amt != self.amt:
+                RevenueSourceItemPriceHistory.objects.create(
+                    rev_src_itm=self,
+                    amt=self.amt,
+                    effective_date=timezone.now(),
+                )
+        else:
+            # Create initial price history for new items
+            RevenueSourceItemPriceHistory.objects.create(
+                rev_src_itm=self,
+                amt=self.amt,
+                effective_date=timezone.now(),
+            )
+
+        super().save(*args, **kwargs)
+
+
+class RevenueSourceItemPriceHistory(TimeStampedModel, models.Model):
+    """Revenue Source Item Price History."""
+
+    rev_src_itm = models.ForeignKey(
+        RevenueSourceItem,
+        on_delete=models.CASCADE,
+        related_name="price_history",
+        verbose_name=_("Revenue Source Item"),
+    )
+    amt = models.DecimalField(
+        max_digits=32, decimal_places=2, verbose_name=_("Item Amount")
+    )
+    effective_date = models.DateTimeField(verbose_name=_("Effective Date"))
+
+    class Meta:
+        verbose_name = _("Revenue Source Item Price History")
+        verbose_name_plural = _("Revenue Source Item Price Histories")
+        ordering = ["-effective_date"]
+
+    def __str__(self):
+        return (
+            f"{self.rev_src_itm.description} - {self.amt} (from {self.effective_date})"
+        )
 
 
 class Bill(TimeStampedModel, models.Model):

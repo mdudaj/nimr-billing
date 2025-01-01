@@ -1,16 +1,16 @@
 import functools
 import logging
-import requests
 import ssl
 
-from django.db import transaction
+import requests
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -18,68 +18,66 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import (
     CreateView,
-    UpdateView,
     DeleteView,
-    TemplateView,
-    ListView,
     DetailView,
+    ListView,
+    TemplateView,
+    UpdateView,
     View,
 )
-
 from django_weasyprint.views import WeasyTemplateView
 
-
-from .models import (
-    Customer,
-    ServiceProvider,
-    BillingDepartment,
-    RevenueSource,
-    RevenueSourceItem,
-    Bill,
-    BillItem,
-    PaymentGatewayLog,
-    SystemInfo,
-    Payment,
-    PaymentReconciliation,
-    CancelledBill,
-)
 from .forms import (
-    CustomerForm,
-    ServiceProviderForm,
-    ServiceProviderBillingDepartmentInlineFormSet,
-    RevenueSourceForm,
-    RevenueSourceItemInlineFormSet,
+    BillCancellationForm,
     BillForm,
     BillItemInlineFormSet,
-    BillCancellationForm,
-    SystemInfoForm,
+    CustomerForm,
     PaymentReconciliationForm,
+    RevenueSourceForm,
+    RevenueSourceItemInlineFormSet,
+    ServiceProviderBillingDepartmentInlineFormSet,
+    ServiceProviderForm,
+    SystemInfoForm,
+)
+from .models import (
+    Bill,
+    BillingDepartment,
+    BillItem,
+    CancelledBill,
+    Customer,
+    Payment,
+    PaymentGatewayLog,
+    PaymentReconciliation,
+    RevenueSource,
+    RevenueSourceItem,
+    RevenueSourceItemPriceHistory,
+    ServiceProvider,
+    SystemInfo,
+)
+from .tasks import (
+    process_bill_control_number_response,
+    process_bill_payment_response,
+    process_bill_reconciliation_response,
+    send_bill_control_number_request,
+    send_bill_reconciliation_request,
 )
 from .utils import (
     compose_acknowledgement_response_payload,
-    compose_payment_response_acknowledgement_payload,
-    compose_bill_reconciliation_response_acknowledgement_payload,
     compose_bill_cancellation_payload,
     compose_bill_cancellation_response_acknowledgement_payload,
+    compose_bill_reconciliation_response_acknowledgement_payload,
+    compose_payment_response_acknowledgement_payload,
     custom_url_fetcher,
-    generate_request_id,
     generate_pdf,
     generate_qr_code,
+    generate_request_id,
     load_private_key,
-    parse_bill_control_number_response,
-    parse_payment_response,
-    parse_bill_reconciliation_response,
     parse_bill_cancellation_response,
+    parse_bill_control_number_response,
+    parse_bill_reconciliation_response,
+    parse_payment_response,
     xml_to_dict,
 )
-from .tasks import (
-    send_bill_control_number_request,
-    process_bill_control_number_response,
-    process_bill_payment_response,
-    send_bill_reconciliation_request,
-    process_bill_reconciliation_response,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -328,6 +326,13 @@ class RevenueSourceCreateView(LoginRequiredMixin, CreateView):
             if revenue_source_items.is_valid():
                 revenue_source_items.instance = self.object
                 revenue_source_items.save()
+                # Create initial price history for each revenue source items
+                for item in revenue_source_items:
+                    RevenueSourceItemPriceHistory.objects.create(
+                        rev_src_itm=item,
+                        amt=item.amt,
+                        effective_date=timezone.now(),
+                    )
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -362,6 +367,24 @@ class RevenueSourceUpdateView(LoginRequiredMixin, UpdateView):
             self.object = form.save()
             if revenue_source_items.is_valid():
                 revenue_source_items.instance = self.object
+                for item_form in revenue_source_items:
+                    if item_form.instance.pk:  # Check if the item exists
+                        # Check if the amount has changed
+                        if item_form.instance.amt != item_form.cleaned_data.get("amt"):
+                            # Create a new price history record
+                            RevenueSourceItemPriceHistory.objects.create(
+                                rev_src_itm=item_form.instance,
+                                amt=item_form.cleaned_data.get("amt"),
+                                effective_date=timezone.now(),
+                            )
+                    else:
+                        # Create initial price history for new item
+                        RevenueSourceItemPriceHistory.objects.create(
+                            rev_src_itm=item_form.instance,
+                            amt=item_form.cleaned_data.get("amt"),
+                            effective_date=timezone.now(),
+                        )
+                # Save the revenue source items
                 revenue_source_items.save()
         return super().form_valid(form)
 
