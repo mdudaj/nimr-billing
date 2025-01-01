@@ -11,6 +11,7 @@ env
 security/*
 logs/
 logs/celery_tasks.log
+backup/*
 
 
 #src
