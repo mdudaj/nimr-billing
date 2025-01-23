@@ -10,8 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
-import os, random, string, inspect
+import inspect
+import os
+import random
+import string
 from pathlib import Path
+
 from dotenv import load_dotenv
 from str2bool import str2bool
 
@@ -277,6 +281,9 @@ GEPG_PUBLIC_KEY_PASSWORD = os.environ.get("GEPG_PUBLIC_KEY_PASSWORD")
 # Encryption Key
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 ENCRYPTION_KEY_PASSWORD = os.environ.get("ENCRYPTION_KEY_PASSWORD")
+
+# Exchange Rate Endpoint
+EXCRATES_URL = os.environ.get("EXCRATES_URL")
 
 # Email Configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

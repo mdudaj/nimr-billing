@@ -44,7 +44,9 @@ from .models import (
     BillingDepartment,
     BillItem,
     CancelledBill,
+    Currency,
     Customer,
+    ExchangeRate,
     Payment,
     PaymentGatewayLog,
     PaymentReconciliation,
@@ -84,6 +86,54 @@ logger = logging.getLogger(__name__)
 
 class BillingIndexView(LoginRequiredMixin, TemplateView):
     template_name = "billing/index.html"
+
+
+class CurrencyListView(LoginRequiredMixin, ListView):
+    model = Currency
+    template_name = "billing/currency/currency_list.html"
+
+
+class CurrencyDetailView(LoginRequiredMixin, DetailView):
+    model = Currency
+    template_name = "billing/currency/currency_detail.html"
+
+
+class CurrencyCreateView(LoginRequiredMixin, CreateView):
+    model = Currency
+    fields = ["code", "name"]
+    template_name = "billing/currency/currency_form.html"
+    success_url = reverse_lazy("billing:currency-list")
+
+
+class CurrencyUpdateView(LoginRequiredMixin, UpdateView):
+    model = Currency
+    fields = ["code", "name"]
+    template_name = "billing/currency/currency_form.html"
+    success_url = reverse_lazy("billing:currency-list")
+
+
+class ExchangeRateCreateView(LoginRequiredMixin, CreateView):
+    model = ExchangeRate
+    fields = ["currency", "trx_date", "buying", "selling"]
+    template_name = "billing/exchange_rate/exchange_rate_form.html"
+    success_url = reverse_lazy("billing:exchange-rate-list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_update"] = False
+        return context
+
+
+class ExchangeRateUpdateView(LoginRequiredMixin, UpdateView):
+    model = ExchangeRate
+    fields = ["currency", "trx_date", "buying", "selling"]
+    template_name = "billing/exchange_rate/exchange_rate_form.html"
+    success_url = reverse_lazy("billing:exchange-rate-list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_update"] = True
+        return context
 
 
 class SystemInfoListView(LoginRequiredMixin, ListView):
@@ -460,16 +510,17 @@ class BillCreateView(LoginRequiredMixin, CreateView):
                     self.object.billitem_set.first().rev_src_itm.currency
                 )
 
-                # Validate the currency
-                # if self.object.currency not in ["TZS", "USD"]:
-                #     form.add_error("currency", "Invalid currency selected")
-                #     messages.error(
-                #         self.request,
-                #         f"Invalid currency selected: {self.object.currency}. Please select either TZS or USD.",
-                #     )
-                #     return self.form_invalid(form)
+                # Check if bill item currency is the same as the bill currency
+                # if not, get the exchange rate and convert the bill amount
+                # if self.object.currency != self.object.billitem_set.first().rev_src_itm.currency:
+                #    exchange_rate = ExchangeRate.objects.filter(
+                #       currency=self.object.billitem_set.first().rev_src_itm.currency,
+                # ).latest("trx_date")
+                #    self.object.amt = self.object.amt * exchange_rate.selling
+                #    self.object.eqv_amt = self.object.amt
+                #    self.object.min_amt = self.object.amt
+                #    self.object.max_amt = self.object.amt
 
-                # Save the bill object
                 self.object.save()
 
                 # Generate a unique request ID

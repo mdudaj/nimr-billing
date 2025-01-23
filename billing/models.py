@@ -38,6 +38,9 @@ class Currency(TimeStampedModel, models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
+    def get_absolute_url(self):
+        return reverse("billing:currency-detail", kwargs={"pk": self.pk})
+
 
 class ExchangeRate(TimeStampedModel, models.Model):
     """Store Daily Currency Exchange Rate Information."""
@@ -61,6 +64,9 @@ class ExchangeRate(TimeStampedModel, models.Model):
         verbose_name_plural = "Exchange Rates"
         unique_together = ["currency", "trx_date"]
         ordering = ["-trx_date"]
+
+    def __str__(self):
+        return f"{self.currency.code} - {self.trx_date}"
 
 
 class SystemInfo(TimeStampedModel, models.Model):

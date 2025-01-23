@@ -1,33 +1,36 @@
-import requests
 from datetime import datetime, timedelta
-from django.conf import settings
-from django.core.mail import send_mail, EmailMessage
-from django.http import JsonResponse
+
+import requests
 from celery import shared_task
 from celery.utils.log import get_task_logger
+from django.conf import settings
+from django.core.mail import EmailMessage, send_mail
+from django.db import IntegrityError
+from django.http import JsonResponse
 
 from .models import (
     Bill,
-    Payment,
-    PaymentReconciliation,
-    PaymentGatewayLog,
-    SystemInfo,
     CancelledBill,
+    Currency,
+    ExchangeRate,
+    Payment,
+    PaymentGatewayLog,
+    PaymentReconciliation,
+    SystemInfo,
 )
-from .utils import (
-    compose_bill_control_number_request_payload,
+from .utils import (  # get_exchange_rate,
     compose_acknowledgement_response_payload,
+    compose_bill_control_number_request_payload,
     compose_bill_reconciliation_request_payload,
     compose_bill_reconciliation_response_acknowledgement_payload,
+    load_private_key,
     parse_bill_control_number_request_acknowledgement,
     parse_bill_control_number_response,
-    parse_payment_response,
     parse_bill_reconciliation_request_acknowledgement,
     parse_bill_reconciliation_response,
-    load_private_key,
+    parse_payment_response,
     xml_to_dict,
 )
-
 
 logger = get_task_logger(__name__)
 
@@ -605,3 +608,58 @@ def process_bill_reconciliation_response(
             "Payment Gateway API Error",
             f"Error processing bill reconciliation response for request ID: {req_id} - {str(e)}",
         )
+
+
+# @shared_task
+# def update_exchange_rates(url: str, trx_date: str = None):
+#     """
+#     Fetches the latest exchange rates from the specified URL and updates the database if does not exist.
+
+#     Args:
+#         url (str): The URL to fetch the exchange rates from.
+#         trx_date (str): The date of the exchange rate. Defaults to None.
+#     """
+#     if not trx_date:
+#         trx_date = datetime.now().date().strftime("%d-%b-%y")
+
+#     active_currencies = Currency.objects.filter(is_active=True)
+
+#     for currency in active_currencies:
+#         try:
+#             result = get_exchange_rate(url, currency.code)
+#             if result:
+#                 buying, selling, transaction_date = result
+
+#                 # Ensure transaction date is the same as the one provided
+#                 if transaction_date != trx_date:
+#                     logger.warning(
+#                         f"Transaction date {transaction_date} does not match the provided date {trx_date}. Skipping update."
+#                     )
+#                     continue
+
+#                 # Update or create the exchange rate entry
+#                 _, created = ExchangeRate.objects.get_or_create(
+#                     currency=currency,
+#                     trx_date=datetime.strptime(transaction_date, "%d-%b-%y"),
+#                     defaults={
+#                         "buying": buying,
+#                         "selling": selling,
+#                     },
+#                 )
+#                 action = "Created" if created else "Updated"
+#                 logger.info(
+#                     f"{action} exchange rate for {currency.code} on {transaction_date}"
+#                 )
+
+#             else:
+#                 logger.warning(
+#                     f"Exchange rate for {currency.code} on {trx_date} not found."
+#                 )
+
+#         except IntegrityError as e:
+#             logger.error(
+#                 f"Integrity error updating exchange rate for {currency.code}: {e}"
+#             )
+
+#         except Exception as e:
+#             logger.error(f"Error fetching exchange rate for {currency.code}: {e}")
