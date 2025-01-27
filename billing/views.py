@@ -112,6 +112,11 @@ class CurrencyUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy("billing:currency-list")
 
 
+class ExchangeRateListView(LoginRequiredMixin, ListView):
+    model = ExchangeRate
+    template_name = "billing/exchange_rate/exchange_rate_list.html"
+
+
 class ExchangeRateCreateView(LoginRequiredMixin, CreateView):
     model = ExchangeRate
     fields = ["currency", "trx_date", "buying", "selling"]
@@ -506,21 +511,8 @@ class BillCreateView(LoginRequiredMixin, CreateView):
                 self.object.eqv_amt = self.object.amt
                 self.object.min_amt = self.object.amt
                 self.object.max_amt = self.object.amt
-                self.object.currency = (
-                    self.object.billitem_set.first().rev_src_itm.currency
-                )
 
-                # Check if bill item currency is the same as the bill currency
-                # if not, get the exchange rate and convert the bill amount
-                # if self.object.currency != self.object.billitem_set.first().rev_src_itm.currency:
-                #    exchange_rate = ExchangeRate.objects.filter(
-                #       currency=self.object.billitem_set.first().rev_src_itm.currency,
-                # ).latest("trx_date")
-                #    self.object.amt = self.object.amt * exchange_rate.selling
-                #    self.object.eqv_amt = self.object.amt
-                #    self.object.min_amt = self.object.amt
-                #    self.object.max_amt = self.object.amt
-
+                # Save the bill object
                 self.object.save()
 
                 # Generate a unique request ID
@@ -585,14 +577,6 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
                 self.object.eqv_amt = self.object.amt
                 self.object.min_amt = self.object.amt
                 self.object.max_amt = self.object.amt
-                self.object.currency = (
-                    self.object.billitem_set.first().rev_src_itm.currency
-                )
-
-                # # Validate the currency
-                # if self.object.currency not in ["TZS", "USD"]:
-                #     form.add_error("currency", "Invalid currency selected")
-                #     return self.form_invalid(form)
 
                 # Save the bill object
                 self.object.save()
@@ -1411,7 +1395,7 @@ def check_control_number_request_status(request, pk):
         )
 
 
-class BillPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
+class BillPrintPDFView(WeasyTemplateView):
     template_name = "billing/printout/bill_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
@@ -1466,7 +1450,7 @@ class BillPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
         return f"{bill.bill_id}.pdf"
 
 
-class BillTransferPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
+class BillTransferPrintPDFView(WeasyTemplateView):
     template_name = "billing/printout/bill_transfer_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",

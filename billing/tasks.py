@@ -18,11 +18,12 @@ from .models import (
     PaymentReconciliation,
     SystemInfo,
 )
-from .utils import (  # get_exchange_rate,
+from .utils import (
     compose_acknowledgement_response_payload,
     compose_bill_control_number_request_payload,
     compose_bill_reconciliation_request_payload,
     compose_bill_reconciliation_response_acknowledgement_payload,
+    get_exchange_rate,
     load_private_key,
     parse_bill_control_number_request_acknowledgement,
     parse_bill_control_number_response,
@@ -610,56 +611,56 @@ def process_bill_reconciliation_response(
         )
 
 
-# @shared_task
-# def update_exchange_rates(url: str, trx_date: str = None):
-#     """
-#     Fetches the latest exchange rates from the specified URL and updates the database if does not exist.
+@shared_task
+def update_exchange_rates(url: str, trx_date: str = None):
+    """
+    Fetches the latest exchange rates from the specified URL and updates the database if does not exist.
 
-#     Args:
-#         url (str): The URL to fetch the exchange rates from.
-#         trx_date (str): The date of the exchange rate. Defaults to None.
-#     """
-#     if not trx_date:
-#         trx_date = datetime.now().date().strftime("%d-%b-%y")
+    Args:
+        url (str): The URL to fetch the exchange rates from.
+        trx_date (str): The date of the exchange rate. Defaults to None.
+    """
+    if not trx_date:
+        trx_date = datetime.now().date().strftime("%d-%b-%y")
 
-#     active_currencies = Currency.objects.filter(is_active=True)
+    active_currencies = Currency.objects.filter(is_active=True)
 
-#     for currency in active_currencies:
-#         try:
-#             result = get_exchange_rate(url, currency.code)
-#             if result:
-#                 buying, selling, transaction_date = result
+    for currency in active_currencies:
+        try:
+            result = get_exchange_rate(url, currency.code)
+            if result:
+                buying, selling, transaction_date = result
 
-#                 # Ensure transaction date is the same as the one provided
-#                 if transaction_date != trx_date:
-#                     logger.warning(
-#                         f"Transaction date {transaction_date} does not match the provided date {trx_date}. Skipping update."
-#                     )
-#                     continue
+                # Ensure transaction date is the same as the one provided
+                if transaction_date != trx_date:
+                    logger.warning(
+                        f"Transaction date {transaction_date} does not match the provided date {trx_date}. Skipping update."
+                    )
+                    continue
 
-#                 # Update or create the exchange rate entry
-#                 _, created = ExchangeRate.objects.get_or_create(
-#                     currency=currency,
-#                     trx_date=datetime.strptime(transaction_date, "%d-%b-%y"),
-#                     defaults={
-#                         "buying": buying,
-#                         "selling": selling,
-#                     },
-#                 )
-#                 action = "Created" if created else "Updated"
-#                 logger.info(
-#                     f"{action} exchange rate for {currency.code} on {transaction_date}"
-#                 )
+                # Update or create the exchange rate entry
+                _, created = ExchangeRate.objects.get_or_create(
+                    currency=currency,
+                    trx_date=datetime.strptime(transaction_date, "%d-%b-%y"),
+                    defaults={
+                        "buying": buying,
+                        "selling": selling,
+                    },
+                )
+                action = "Created" if created else "Updated"
+                logger.info(
+                    f"{action} exchange rate for {currency.code} on {transaction_date}"
+                )
 
-#             else:
-#                 logger.warning(
-#                     f"Exchange rate for {currency.code} on {trx_date} not found."
-#                 )
+            else:
+                logger.warning(
+                    f"Exchange rate for {currency.code} on {trx_date} not found."
+                )
 
-#         except IntegrityError as e:
-#             logger.error(
-#                 f"Integrity error updating exchange rate for {currency.code}: {e}"
-#             )
+        except IntegrityError as e:
+            logger.error(
+                f"Integrity error updating exchange rate for {currency.code}: {e}"
+            )
 
-#         except Exception as e:
-#             logger.error(f"Error fetching exchange rate for {currency.code}: {e}")
+        except Exception as e:
+            logger.error(f"Error fetching exchange rate for {currency.code}: {e}")

@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "rest_framework_api_key",
     "jquery",
     "djangoformsetjs",
+    "django_celery_beat",
     # Local apps
     "accounts",
     "home",
@@ -222,11 +223,11 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "logs", "celery_tasks.log"),
-        },
+        # "file": {
+        #     "level": "DEBUG",
+        #     "class": "logging.FileHandler",
+        #     "filename": os.path.join(BASE_DIR, "logs", "celery_tasks.log"),
+        # },
         "redis": {
             "level": "DEBUG",
             "class": "core.redis_logging.RedisHandler",
@@ -237,12 +238,12 @@ LOGGING = {
     },
     "loggers": {
         "django": {
-            "handlers": ["file", "redis"],
+            "handlers": ["redis"],
             "level": "DEBUG",
             "propagate": True,
         },
         "celery": {
-            "handlers": ["file", "redis"],
+            "handlers": ["redis"],
             "level": "DEBUG",
             "propagate": True,
         },

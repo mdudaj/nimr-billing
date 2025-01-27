@@ -1,0 +1,31 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Customer List {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Exchange Rates</h1>
+    </div>
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>Currency</th>
+                <th>Buying</th>
+                <th>Selling</th>
+                <th>Transaction Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exchange_rate in exchangerate_list %}
+            <tr>
+                <td>{{ exchange_rate.currency }}</td>
+                <td>{{ exchange_rate.buying }}</td>
+                <td>{{ exchange_rate.selling }}</td>
+                <td>{{ exchange_rate.trx_date }}</td>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

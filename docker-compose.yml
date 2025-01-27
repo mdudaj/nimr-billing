@@ -35,12 +35,13 @@ services:
     networks:
       - db_network
 
-  celery:
-    container_name: ws_celery
+  celery_worker:
+    container_name: ws_celery_worker
     restart: always
     build:
       context: .
       dockerfile: Dockerfile.celery
+    command: celery -A core worker --loglevel=info
     volumes:
       - .:/app
     networks:
@@ -49,6 +50,42 @@ services:
     depends_on:
       - db
       - redis
+
+  celery_beat:
+    container_name: ws_celery_beat
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    command: celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    networks:
+      - db_network
+      - web_network
+    depends_on:
+      - db
+      - redis
+      - celery_worker
+
+  flower:
+    container_name: ws_flower
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    command: celery -A core flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - .:/app
+    networks:
+      - db_network
+      - web_network
+    depends_on:
+      - db
+      - redis
+      - celery_worker
 
   nginx:
     container_name: nginx

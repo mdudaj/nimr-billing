@@ -10,8 +10,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 import qrcode
 import requests
-
-# from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import pkcs12
@@ -954,50 +953,50 @@ def compose_bill_cancellation_response_acknowledgement_payload(
     return payload_str
 
 
-# def get_exchange_rate(url: str, currency_code: str):
-#     """
-#     Fetches and extracts exchange rate data for a given currency code from the provided URL.
+def get_exchange_rate(url: str, currency_code: str):
+    """
+    Fetches and extracts exchange rate data for a given currency code from the provided URL.
 
-#     Args:
-#         url (str): The URL to fetch the exchange rate data from.
-#         currency_code (str): The currency code to fetch the exchange rate for.
+    Args:
+        url (str): The URL to fetch the exchange rate data from.
+        currency_code (str): The currency code to fetch the exchange rate for.
 
-#     Returns:
-#         tuple: A tuple containing the exchange rate data or None if currency code is not found.
-#     """
-#     try:
-#         # Fetch the html content from the URL
-#         response = requests.get(url)
-#         response.raise_for_status()
-#         soup = BeautifulSoup(response.text, "html.parser")
+    Returns:
+        tuple: A tuple containing the exchange rate data or None if currency code is not found.
+    """
+    try:
+        # Fetch the html content from the URL
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
 
-#         # Find the table containing the exchange rate data
-#         table = soup.find("table", id="table1")
-#         if not table:
-#             print("Exchange rate data not found.")
-#             return None
+        # Find the table containing the exchange rate data
+        table = soup.find("table", id="table1")
+        if not table:
+            print("Exchange rate data not found.")
+            return None
 
-#         # Iterate over the rows in the table
-#         rows = table.find("tbody").find_all("tr")
-#         for row in rows:
-#             columns = row.find_all("td")
-#             if len(columns) < 6:
-#                 continue
+        # Iterate over the rows in the table
+        rows = table.find("tbody").find_all("tr")
+        for row in rows:
+            columns = row.find_all("td")
+            if len(columns) < 6:
+                continue
 
-#             if columns[1].get_text(strip=True) == currency_code:
-#                 # # Exctract the relevant columns: currency, buying, selling, transaction date
-#                 buying = float(columns[2].get_text(strip=True))
-#                 selling = float(columns[3].get_text(strip=True))
-#                 trx_date = columns[5].get_text(strip=True)
+            if columns[1].get_text(strip=True) == currency_code:
+                # # Exctract the relevant columns: currency, buying, selling, transaction date
+                buying = float(columns[2].get_text(strip=True))
+                selling = float(columns[3].get_text(strip=True))
+                trx_date = columns[5].get_text(strip=True)
 
-#                 return buying, selling, trx_date
+                return buying, selling, trx_date
 
-#         return None
+        return None
 
-#     except requests.exceptions.RequestException as e:
-#         print(f"Error fetching exchange rate data: {str(e)}")
-#         return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching exchange rate data: {str(e)}")
+        return None
 
-#     except Exception as e:
-#         print(f"An error occurred: {str(e)}")
-#         return None
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None

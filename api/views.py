@@ -1,24 +1,22 @@
 import logging
+
 from django.views.generic import View
-
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
+from rest_framework import status, viewsets
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
-
 
 from billing.tasks import send_bill_control_number_request
 from billing.utils import generate_request_id
 
-from .serializers import BillSerializer
 from .models import BillCntrlNum, BillPayment
-
+from .serializers import BillSerializer
 
 logger = logging.getLogger(__name__)
 
 
 class BillSubmissionView(viewsets.ModelViewSet):
-    permission_classes = [HasAPIKey]
+    # permission_classes = [HasAPIKey]
     serializer_class = BillSerializer
 
     def create(self, request):

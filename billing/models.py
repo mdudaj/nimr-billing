@@ -36,7 +36,7 @@ class Currency(TimeStampedModel, models.Model):
         ordering = ["code"]
 
     def __str__(self):
-        return f"{self.code} - {self.name}"
+        return f"{self.code}"
 
     def get_absolute_url(self):
         return reverse("billing:currency-detail", kwargs={"pk": self.pk})
@@ -197,6 +197,12 @@ class ServiceProvider(TimeStampedModel, models.Model):
 class BillingDepartment(TimeStampedModel, models.Model):
     """Billing Department Collection Center Information."""
 
+    Bank_Choices = (
+        ("CRDB", _("CRDB Bank PLC")),
+        ("NBC", _("National Bank of Commerce")),
+        ("NMB", _("NMB Bank PLC")),
+    )
+
     service_provider = models.ForeignKey(
         ServiceProvider, on_delete=models.CASCADE, verbose_name=_("Service Provider")
     )
@@ -217,9 +223,20 @@ class BillingDepartment(TimeStampedModel, models.Model):
         null=True,
         verbose_name=_("Collection Center Code"),
     )
+    bank = models.CharField(
+        max_length=10, choices=Bank_Choices, verbose_name=_("Bank Name")
+    )
+    bank_swift_code = models.CharField(max_length=20, verbose_name=_("Bank Swift Code"))
     account_num = models.CharField(
         max_length=50,
         verbose_name=_("Credit Collection Account Number"),
+    )
+    account_currency = models.ForeignKey(
+        Currency,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("Account Currency"),
     )
 
     class Meta:
@@ -263,7 +280,6 @@ class RevenueSourceItem(TimeStampedModel, models.Model):
     CURRENCY_CHOICES = (
         ("TZS", _("Tanzanian Shilling")),
         ("USD", _("United States Dollar")),
-        ("EU", _("Euro")),
     )
 
     rev_src = models.ForeignKey(
@@ -463,7 +479,6 @@ class Bill(TimeStampedModel, models.Model):
     currency = models.CharField(
         max_length=3,
         choices=CURRENCY_CHOICES,
-        default="TZS",
         verbose_name=_("Currency Code"),
     )
     exch_rate = models.DecimalField(max_digits=32, decimal_places=2, default=1.00)
@@ -507,8 +522,8 @@ class Bill(TimeStampedModel, models.Model):
             self.bill_id = f"{self.dept.service_provider.code[-3:]}{self.gen_date.strftime('%Y%m%d%H%M%S')}"
             self.grp_bill_id = self.bill_id
 
-        # Set the bill expiry date to 30 days from the generation date
-        self.expr_date = self.gen_date + timezone.timedelta(days=30)
+        # Set the bill expiry date to 90 days from the generation date
+        self.expr_date = self.gen_date + timezone.timedelta(days=90)
 
         super(Bill, self).save(*args, **kwargs)
 
@@ -523,6 +538,9 @@ class Bill(TimeStampedModel, models.Model):
 
     def get_print_url(self):
         return reverse("billing:bill-print", kwargs={"pk": self.pk})
+
+    def get_transfer_print_url(self):
+        return reverse("billing:bill-transfer-print", kwargs={"pk": self.pk})
 
     def service_provider(self):
         return self.dept.service_provider
@@ -642,6 +660,18 @@ class BillItem(TimeStampedModel, models.Model):
             self.amt = (self.qty * self.rev_src_itm.amt) + self.penalty_amt
         else:
             self.amt = self.qty * self.rev_src_itm.amt
+
+        # Check if bill item currency is different from the bill currency
+        if (
+            self.bill.currency != self.rev_src_itm.currency
+            and self.bill.currency == "TZS"
+        ):
+            # Get the exchange rate for the bill currency and convert the amount
+            exchange_rate = ExchangeRate.objects.filter(
+                currency__code=self.rev_src_itm.currency
+            ).latest("trx_date")
+            self.amt = self.amt * exchange_rate.selling
+
         self.eqv_amt = self.amt
         self.misc_amt = self.amt
         super(BillItem, self).save(*args, **kwargs)

@@ -36,6 +36,7 @@ qrcode = "*"
 pillow = "*"
 beautifulsoup4 = "*"
 django-celery-beat = "*"
+flower = "*"
 
 [dev-packages]
 

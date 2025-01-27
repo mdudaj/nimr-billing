@@ -1,21 +1,29 @@
 from django import forms
+
 from .models import (
-    Customer,
-    ServiceProvider,
-    BillingDepartment,
-    RevenueSource,
-    RevenueSourceItem,
     Bill,
+    BillingDepartment,
     BillItem,
     CancelledBill,
-    SystemInfo,
+    Customer,
+    ExchangeRate,
     PaymentReconciliation,
+    RevenueSource,
+    RevenueSourceItem,
+    ServiceProvider,
+    SystemInfo,
 )
 
 
 class SystemInfoForm(forms.ModelForm):
     class Meta:
         model = SystemInfo
+        fields = "__all__"
+
+
+class ExchangeRateForm(forms.ModelForm):
+    class Meta:
+        model = ExchangeRate
         fields = "__all__"
 
 

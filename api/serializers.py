@@ -1,15 +1,16 @@
 import logging
 import re
+
 from rest_framework import serializers
+
 from billing.models import (
     Bill,
-    BillItem,
     BillingDepartment,
+    BillItem,
     Customer,
     RevenueSourceItem,
     SystemInfo,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class BillSerializer(serializers.ModelSerializer):
     bill_dept = serializers.CharField(max_length=50, required=True)
     customer = serializers.DictField(required=True, child=serializers.CharField())
     revenue_source = serializers.IntegerField(required=True)
+    currency = serializers.CharField(max_length=3, required=False, default=None)
 
     class Meta:
         model = Bill
@@ -28,8 +30,10 @@ class BillSerializer(serializers.ModelSerializer):
             "description",
             "revenue_source",
             "customer",
+            "currency",
         ]
 
+    #
     def validate_customer(self, value):
         # Ensure that only the expected fields are present
         expected_fields = [
@@ -69,33 +73,49 @@ class BillSerializer(serializers.ModelSerializer):
 
         return value
 
+    # Validate currency
+    def validate_currency(self, value):
+        if value is not None and value not in ["TZS", "USD"]:
+            raise serializers.ValidationError("Invalid currency")
+
+        return value
+
     def create(self, validated_data):
         try:
             sys_code_data = validated_data.pop("sys_code")
             bill_dept_data = validated_data.pop("bill_dept")
             customer_data = validated_data.pop("customer")
             revenue_source_data = validated_data.pop("revenue_source")
+            currency_data = validated_data.pop("currency")
 
+            # Get the system info and billing department objects
             sys_info = SystemInfo.objects.get(code=sys_code_data)
             billing_dept = BillingDepartment.objects.get(name=bill_dept_data)
 
+            # Get or create the customer object
             customer, created = Customer.objects.get_or_create(
                 email=customer_data.get("email"),
                 defaults=customer_data,
             )
+
+            # Get revenue source item
+            rev_src_itm = RevenueSourceItem.objects.get(id=revenue_source_data)
+
+            if currency_data is None:
+                currency_data = rev_src_itm.currency
 
             # Create the bill object
             bill = Bill.objects.create(
                 sys_info=sys_info,
                 dept=billing_dept,
                 customer=customer,
+                currency=currency_data,
                 gen_by=customer.get_name(),
                 appr_by=customer.get_name(),
                 **validated_data,
             )
 
             # Handle bill item
-            rev_src_itm = RevenueSourceItem.objects.get(id=revenue_source_data)
             BillItem.objects.create(
                 bill=bill,
                 dept=billing_dept,
@@ -103,7 +123,6 @@ class BillSerializer(serializers.ModelSerializer):
             )
 
             # Update the bill object with amount, equevalent amount, and max amount
-            bill.currency = rev_src_itm.currency
             bill.amt = sum([item.amt for item in bill.billitem_set.all()])
             bill.eqv_amt = bill.amt
             bill.min_amt = bill.amt
