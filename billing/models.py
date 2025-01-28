@@ -514,7 +514,15 @@ class Bill(TimeStampedModel, models.Model):
         return f"Bill {self.bill_id} for {self.customer.get_name()}"
 
     def save(self, *args, **kwargs):
-        if not self.pk:
+        is_new = not self.pk
+        old_currency = None
+
+        # Check for existing instance to detect currency change
+        if not is_new:
+            old_currency = Bill.objects.get(pk=self.pk).currency
+
+        # Set the bill id and expiry date for new bills
+        if is_new:
             # Set the bill generation date to the current date
             self.gen_date = timezone.now()
 
@@ -526,6 +534,18 @@ class Bill(TimeStampedModel, models.Model):
         self.expr_date = self.gen_date + timezone.timedelta(days=90)
 
         super(Bill, self).save(*args, **kwargs)
+
+        # Handle currency change for existing bills
+        if old_currency and old_currency != self.currency and self.currency == "TZS":
+            for item in self.billitem_set.all():
+                # Check if bill item currency is different from the bill currency
+                if item.rev_src_itm.currency != self.currency:
+                    # Get the exchange rate for the bill currency and convert the amount
+                    exchange_rate = ExchangeRate.objects.filter(
+                        currency__code=item.rev_src_itm.currency
+                    ).latest("trx_date")
+                    item.amt = item.amt * exchange_rate.selling
+                    item.save()
 
     def get_absolute_url(self):
         return reverse("billing:bill-detail", kwargs={"pk": self.pk})
@@ -540,7 +560,14 @@ class Bill(TimeStampedModel, models.Model):
         return reverse("billing:bill-print", kwargs={"pk": self.pk})
 
     def get_transfer_print_url(self):
-        return reverse("billing:bill-transfer-print", kwargs={"pk": self.pk})
+        if self.cntr_num:
+            return reverse("billing:bill-transfer-print", kwargs={"pk": self.pk})
+        return None
+
+    def get_receipt_print_url(self):
+        if self.is_paid():
+            return reverse("billing:bill-receipt-print", kwargs={"pk": self.pk})
+        return None
 
     def service_provider(self):
         return self.dept.service_provider
@@ -653,6 +680,12 @@ class BillItem(TimeStampedModel, models.Model):
 
     def __str__(self):
         return self.description
+
+    def convert_usd_to_tzs(self, usd_amt):
+        exchange_rate = ExchangeRate.objects.filter(currency__code="USD").latest(
+            "trx_date"
+        )
+        return usd_amt * exchange_rate.selling
 
     def save(self, *args, **kwargs):
         self.description = self.rev_src_itm.description

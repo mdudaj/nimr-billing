@@ -247,6 +247,7 @@ def process_bill_control_number_response(
                     "req_id": req_id,
                     "bill_id": bill_id,
                     "cntr_num": cust_cntr_num,
+                    "bill_print_url": f"{settings.PUBLIC_URL}{bill.get_transfer_print_url()}",
                 }
                 response = requests.post(url, headers=headers, json=payload)
 
@@ -380,6 +381,7 @@ def process_bill_payment_response(
                 "trx_date": trx_date_str,
                 "pay_channel": pay_channel,
                 "pyr_cell_num": pyr_cell_num,
+                "bill_receipt_url": f"{settings.PUBLIC_URL}{bill.get_receipt_print_url()}",
             }
             response = requests.post(url, headers=headers, json=payload)
 

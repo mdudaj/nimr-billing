@@ -36,7 +36,17 @@ if not SECRET_KEY:
 DEBUG = str2bool(os.environ.get("DEBUG"))
 # print(' DEBUG -> ' + str(DEBUG) )
 
-ALLOWED_HOSTS = ["*"]
+# Public URL and Allowed Hosts
+PUBLIC_URL = os.environ.get("PUBLIC_URL")
+if not PUBLIC_URL:
+    PUBLIC_URL = "http://localhost"
+
+HOSTS = os.environ.get("ALLOWED_HOSTS")
+
+if HOSTS:
+    ALLOWED_HOSTS = HOSTS.split(",")
+else:
+    ALLOWED_HOSTS = ["http://127.0.0.1", "http://localhost"]
 
 # Add here your deployment HOSTS
 CSRF_TRUSTED_ORIGINS = [
@@ -285,6 +295,7 @@ ENCRYPTION_KEY_PASSWORD = os.environ.get("ENCRYPTION_KEY_PASSWORD")
 
 # Exchange Rate Endpoint
 EXCRATES_URL = os.environ.get("EXCRATES_URL")
+
 
 # Email Configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
