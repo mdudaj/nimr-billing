@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class BillSubmissionView(viewsets.ModelViewSet):
-    # permission_classes = [HasAPIKey]
+    permission_classes = [HasAPIKey]
     serializer_class = BillSerializer
 
     def create(self, request):
