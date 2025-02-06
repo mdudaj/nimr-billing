@@ -2,6 +2,7 @@ import json
 
 from django.apps import AppConfig
 from django.conf import settings
+from django.db.utils import IntegrityError, OperationalError
 
 
 class BillingConfig(AppConfig):
@@ -11,12 +12,22 @@ class BillingConfig(AppConfig):
     def ready(self):
         from django_celery_beat.models import IntervalSchedule, PeriodicTask
 
-        self.setup_periodic_tasks(IntervalSchedule, PeriodicTask)
+        try:
+            # Create interval schedule and periodic task
+            self.setup_periodic_tasks(IntervalSchedule, PeriodicTask)
+        except (OperationalError, IntegrityError):
+            # Avoid errors during migrations or when the database is not ready
+            pass
 
     def setup_periodic_tasks(self, IntervalSchedule, PeriodicTask):
-        schedule, _ = IntervalSchedule.objects.get_or_create(
+        # Ensure that there is only one interval schedule
+        schedule = IntervalSchedule.objects.filter(
             every=1, period=IntervalSchedule.HOURS
-        )
+        ).first()
+        if not schedule:
+            schedule = IntervalSchedule.objects.create(
+                every=1, period=IntervalSchedule.HOURS
+            )
 
         task_name = "update-exchange-rates-hourly"
         task_url = settings.EXCRATES_URL
