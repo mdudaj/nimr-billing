@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.mail import EmailMessage, send_mail
 from django.db import IntegrityError
 from django.http import JsonResponse
+from django.utils import timezone
 
 from .models import (
     Bill,
@@ -623,7 +624,12 @@ def update_exchange_rates(url: str, trx_date: str = None):
         trx_date (str): The date of the exchange rate. Defaults to None.
     """
     if not trx_date:
-        trx_date = datetime.now().date().strftime("%d-%b-%y")
+        trx_date = timezone.now().date().strftime("%d-%b-%y")
+
+    # Check if the exchange rate for the current date already exists
+    if ExchangeRate.objects.filter(trx_date=timezone.now().date()).exists():
+        logger.warning(f"Exchange rates for {trx_date} already exist. Skipping update.")
+        return
 
     active_currencies = Currency.objects.filter(is_active=True)
 
