@@ -1,0 +1,51 @@
+{% load static %}
+
+{% if is_paginated %}
+<div class="ui pagination menu">
+    {% if page_obj.has_previous %}
+        <a class="item" href="?page=1{% if search %}&search={{ search }}{% endif %}">
+            <i class="angle double left icon"></i>
+        </a>
+        <a class="item" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">
+            <i class="angle left icon"></i>
+        </a>
+    {% else %}
+        <div class="disabled item">
+            <i class="angle double left icon"></i>
+        </div>
+        <div class="disabled item">
+            <i class="angle left icon"></i>
+        </div>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            <div class="active item">{{ num }}</div>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <a class="item" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a class="item" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">
+            <i class="angle right icon"></i>
+        </a>
+        <a class="item" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">
+            <i class="angle double right icon"></i>
+        </a>
+    {% else %}
+        <div class="disabled item">
+            <i class="angle right icon"></i>
+        </div>
+        <div class="disabled item">
+            <i class="angle double right icon"></i>
+        </div>
+    {% endif %}
+</div>
+
+<div class="ui basic segment">
+    <p class="ui small text">
+        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+    </p>
+</div>
+{% endif %}

@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import transaction, models
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -205,6 +205,27 @@ class SystemInfoDeleteView(LoginRequiredMixin, UpdateView):
 class CustomerListView(LoginRequiredMixin, ListView):
     model = Customer
     template_name = "billing/customer/customer_list.html"
+    paginate_by = 25
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                models.Q(first_name__icontains=search) |
+                models.Q(last_name__icontains=search) |
+                models.Q(tin__icontains=search) |
+                models.Q(email__icontains=search)
+            )
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search'] = self.request.GET.get('search', '')
+        return context
 
 
 class CustomerDetailView(LoginRequiredMixin, DetailView):
@@ -458,16 +479,28 @@ class RevenueSourceDeleteView(LoginRequiredMixin, DeleteView):
 class BillListView(LoginRequiredMixin, ListView):
     model = Bill
     template_name = "billing/bill/bill_list.html"
+    paginate_by = 25
+    ordering = ['-created_at']
 
     def get_queryset(self):
-        # Get all bills first
-        queryset = super().get_queryset()
-
-        # Filter the queryset using the is_cancelled() method
-        # queryset = queryset.filter(
-        #     id__in=[bill.id for bill in queryset if not bill.is_cancelled()]
-        # )
+        queryset = super().get_queryset().select_related('customer')
+        
+        # Search functionality
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                models.Q(bill_id__icontains=search) |
+                models.Q(description__icontains=search) |
+                models.Q(customer__first_name__icontains=search) |
+                models.Q(customer__last_name__icontains=search)
+            )
+        
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search'] = self.request.GET.get('search', '')
+        return context
 
 
 class BillDetailView(LoginRequiredMixin, DetailView):
@@ -1324,6 +1357,11 @@ class BillCancellationListView(LoginRequiredMixin, ListView):
     model = CancelledBill
     template_name = "billing/bill_cancellation/bill_cancellation_list.html"
     context_object_name = "cancelled_bills"
+    paginate_by = 25
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('bill', 'bill__customer', 'gen_by', 'appr_by')
 
 
 class BillCancellationDetailView(LoginRequiredMixin, DetailView):
@@ -1340,6 +1378,16 @@ class BillCancellationDeleteView(LoginRequiredMixin, DeleteView):
 class PaymentListView(LoginRequiredMixin, ListView):
     model = Payment
     template_name = "billing/payment/payment_list.html"
+    paginate_by = 25
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('bill', 'bill__customer')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search'] = self.request.GET.get('search', '')
+        return context
 
 
 class PaymentDetailView(LoginRequiredMixin, DetailView):
@@ -1349,20 +1397,20 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
 
 def check_control_number_request_status(request, pk):
     """Check the status of a bill control number request."""
-
-    bill = get_object_or_404(Bill, id=pk)
+    
+    try:
+        bill = get_object_or_404(Bill, id=pk)
+    except Exception:
+        return JsonResponse(
+            {"status": "NOT_FOUND", "message": "Bill not found."}, 
+            status=404
+        )
+    
     try:
         # Fetch the latest log entry for this bill
         log = PaymentGatewayLog.objects.filter(bill=bill, req_type="1").latest(
             "created_at"
         )
-
-        # If log does not exist
-        if not log:
-            return JsonResponse(
-                {"status": "NOT_FOUND", "message": "No record found for this bill."},
-                status=404,
-            )
 
         # Handle log status conditions
         if log.status == "ERROR":
@@ -1378,20 +1426,21 @@ def check_control_number_request_status(request, pk):
         else:
             return JsonResponse({"status": log.status, "message": log.status_desc})
 
-    except ObjectDoesNotExist as e:
-        logger.error(f"No log found for bill_id {bill.bill_id}: {str(e)}")
+    except PaymentGatewayLog.DoesNotExist:
+        # Return pending status instead of logging error
         return JsonResponse(
-            {"status": "NOT_FOUND", "message": "No record found for this bill."},
-            status=404,
+            {
+                "status": "PENDING", 
+                "message": "Payment status check in progress. Please try again later."
+            }, 
+            status=202
         )
 
     except Exception as e:
-        # Catch all other exceptions
-        logger.error(
-            f"Error fetching control number request status for bill_id {bill.bill_id}: {str(e)}"
-        )
+        # Only log critical errors, not missing records
         return JsonResponse(
-            {"status": "ERROR", "message": "Internal server error"}, status=500
+            {"status": "ERROR", "message": "Service temporarily unavailable"}, 
+            status=503
         )
 
 

@@ -232,12 +232,19 @@ CACHES = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
-        # "file": {
-        #     "level": "DEBUG",
-        #     "class": "logging.FileHandler",
-        #     "filename": os.path.join(BASE_DIR, "logs", "celery_tasks.log"),
-        # },
+        "file": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "django_errors.log"),
+            "formatter": "verbose",
+        },
         "redis": {
             "level": "DEBUG",
             "class": "core.redis_logging.RedisHandler",
@@ -248,14 +255,19 @@ LOGGING = {
     },
     "loggers": {
         "django": {
-            "handlers": ["redis"],
-            "level": "DEBUG",
-            "propagate": True,
+            "handlers": ["redis", "file"],
+            "level": "INFO",
+            "propagate": False,
         },
         "celery": {
-            "handlers": ["redis"],
-            "level": "DEBUG",
-            "propagate": True,
+            "handlers": ["redis", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "billing": {
+            "handlers": ["redis", "file"],
+            "level": "WARNING",
+            "propagate": False,
         },
     },
 }

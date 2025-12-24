@@ -29,7 +29,6 @@
     </div>
     {% endif %}
 
-
     <table class="ui basic striped table">
         <thead>
             <tr>
@@ -45,18 +44,33 @@
             {% for cancelled_bill in cancelled_bills %}
             <tr>
                 <td><a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}">{{ cancelled_bill.bill.bill_id }}</a></td>
-                <td>{{ cancelled_bill.reason }}</td>
+                <td>{{ cancelled_bill.reason|truncatechars:50 }}</td>
                 <td>{{ cancelled_bill.get_status_display }}</td>
-                <td>{{ cancelled_bill.gen_by.get_full_name }}</td>
-                <td>{{ cancelled_bill.appr_by.get_full_name }}</td>
+                <td>{{ cancelled_bill.gen_by.get_full_name|default:"N/A" }}</td>
+                <td>{{ cancelled_bill.appr_by.get_full_name|default:"N/A" }}</td>
                 <td class="single line">
                     <a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}" class="ui icon large button primary">
                         <i class="icon info"></i>
                     </a>
                 </td>
             </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="center aligned">
+                    <div class="ui placeholder segment">
+                        <div class="ui icon header">
+                            <i class="ban icon"></i>
+                            No cancelled bills found
+                        </div>
+                        <p>No bill cancellations on record.</p>
+                    </div>
+                </td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Pagination -->
+    {% include 'billing/components/pagination.html' %}
 </div>
 {% endblock content %}

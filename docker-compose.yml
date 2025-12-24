@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   ws-app:
     container_name: ws_app
@@ -30,8 +29,10 @@ services:
     container_name: ws_redis
     restart: always
     image: redis:latest
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ws_redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - db_network
 
@@ -105,7 +106,6 @@ services:
 volumes:
   ws_db-data:
   ws_redis-data:
-
 
 networks:
   db_network:

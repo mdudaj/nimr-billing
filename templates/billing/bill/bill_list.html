@@ -16,6 +16,13 @@
         </a>
     </div>
 
+    <!-- Search Form -->
+    <div class="ui basic segment">
+        <form method="get" class="ui form">
+            {% include 'billing/components/search.html' with placeholder='Search bills by ID, description, or customer name...' %}
+        </form>
+    </div>
+
     <!-- Messages Block -->
     {% if messages %}
     <div class="ui floating message">
@@ -70,41 +77,60 @@
                     </a>
                 </td>
             </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="center aligned">
+                    <div class="ui placeholder segment">
+                        <div class="ui icon header">
+                            <i class="file outline icon"></i>
+                            No bills found
+                        </div>
+                        {% if search %}
+                        <p>No bills match your search criteria.</p>
+                        <a href="{% url 'billing:bill-list' %}" class="ui primary button">Clear Search</a>
+                        {% else %}
+                        <p>Start by creating your first bill.</p>
+                        <a href="{% url 'billing:bill-create' %}" class="ui primary button">Create Bill</a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
             {% endfor %}
         </tbody>        
     </table>
+
+    <!-- Pagination -->
+    {% include 'billing/components/pagination.html' %}
 </div>
 {% endblock content %}
 
 {% block extrascript %}
 <script>
 $(document).ready(function () {
-// Iterate only over the rows that have no control number (bills where control number is missing)
+// Only poll for bills without control numbers on current page
 $('tr[data-bill-id]').each(function () {
         const billId = $(this).data('bill-id');
         const cntrnum = $('#cntrnum-' + billId);
 
-        if (cntrnum.length) {  // Ensure this bill has a placeholder for control number
+        if (cntrnum.length && cntrnum.text().includes('Still working')) {
             const intervalId = setInterval(function () {
-                // Make an AJAX request to check for task status
                 $.ajax({
                     url: "{% url 'billing:check-control-number-request-status' 0 %}".replace('0', billId),
                     method: 'GET',
                     success: function (data) {
                         if (data.status === 'ERROR') {
                             cntrnum.html('<i class="exclamation triangle icon"></i> ' + data.message);
+                            clearInterval(intervalId);
                         } else if (data.status === 'SUCCESS' && data.control_number) {
                             cntrnum.text(data.control_number);
-                            clearInterval(intervalId); // Stop polling when success
-                        } else {
-                            cntrnum.text('Still working on it...');
+                            clearInterval(intervalId);
                         }
                     },
-                    error: function (xhr, status, error) {
-                        cntrnum.html('<i class="exclamation triangle icon"></i> Error occurred: ' + error);
+                    error: function () {
+                        clearInterval(intervalId);
                     }
                 });
-            }, 5000); // Poll every 5 seconds
+            }, 10000); // Reduced frequency to 10 seconds
         }
     });
 });

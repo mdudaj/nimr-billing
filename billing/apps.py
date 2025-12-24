@@ -11,11 +11,22 @@ class BillingConfig(AppConfig):
 
     def ready(self):
         from django_celery_beat.models import IntervalSchedule, PeriodicTask
+        from django.db import connection
 
         try:
-            # Create interval schedule and periodic task
-            self.setup_periodic_tasks(IntervalSchedule, PeriodicTask)
-        except (OperationalError, IntegrityError):
+            # Check if tables exist before trying to access them
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'django_celery_beat_intervalschedule'
+                    );
+                """)
+                tables_exist = cursor.fetchone()[0]
+                
+            if tables_exist:
+                self.setup_periodic_tasks(IntervalSchedule, PeriodicTask)
+        except (OperationalError, IntegrityError, Exception):
             # Avoid errors during migrations or when the database is not ready
             pass
 

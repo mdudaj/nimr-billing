@@ -15,6 +15,14 @@
             </div>
         </a>
     </div>
+
+    <!-- Search Form -->
+    <div class="ui basic segment">
+        <form method="get" class="ui form">
+            {% include 'billing/components/search.html' with placeholder='Search customers by name, TIN, or email...' %}
+        </form>
+    </div>
+
     <table class="ui basic striped table">
         <thead>
             <tr>
@@ -41,8 +49,29 @@
                             class="icon trash"></i></a>
                 </td>
             </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="center aligned">
+                    <div class="ui placeholder segment">
+                        <div class="ui icon header">
+                            <i class="users icon"></i>
+                            No customers found
+                        </div>
+                        {% if search %}
+                        <p>No customers match your search criteria.</p>
+                        <a href="{% url 'billing:customer-list' %}" class="ui primary button">Clear Search</a>
+                        {% else %}
+                        <p>Start by adding your first customer.</p>
+                        <a href="{% url 'billing:customer-create' %}" class="ui primary button">Add Customer</a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Pagination -->
+    {% include 'billing/components/pagination.html' %}
 </div>
 {% endblock content %}

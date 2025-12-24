@@ -1,0 +1,21 @@
+{% load static %}
+
+<div class="ui fluid action input">
+    <input type="text" name="search" placeholder="{{ placeholder|default:'Search...' }}" value="{{ search }}" id="search-input">
+    <button class="ui button" type="submit">
+        <i class="search icon"></i>
+    </button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    const form = searchInput.closest('form');
+    
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            form.submit();
+        }
+    });
+});
+</script>
