@@ -59,14 +59,14 @@ class BillSerializer(serializers.ModelSerializer):
 
         # Check if the email is valid
         email = value.get("email")
-
-        if not serializers.EmailField().to_internal_value(email):
+        try:
+            serializers.EmailField().run_validation(email)
+        except serializers.ValidationError:
             raise serializers.ValidationError("Invalid email address")
 
         # Check if the cell number is valid
         cell_num = value.get("cell_num")
-
-        if not re.fullmatch(r"^\d{12}$", cell_num):
+        if not isinstance(cell_num, str) or not re.fullmatch(r"^\d{12}$", cell_num):
             raise serializers.ValidationError(
                 "Cell number must have exactly twelve digits including the country code (e.g., 255XXXXXXXXX)"
             )
@@ -86,7 +86,7 @@ class BillSerializer(serializers.ModelSerializer):
             bill_dept_data = validated_data.pop("bill_dept")
             customer_data = validated_data.pop("customer")
             revenue_source_data = validated_data.pop("revenue_source")
-            currency_data = validated_data.pop("currency")
+            currency_data = validated_data.pop("currency", None)
 
             # Get the system info and billing department objects
             sys_info = SystemInfo.objects.get(code=sys_code_data)

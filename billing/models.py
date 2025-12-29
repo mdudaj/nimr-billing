@@ -316,24 +316,22 @@ class RevenueSourceItem(TimeStampedModel, models.Model):
 
     def save(self, *args, **kwargs):
         # Ensure amt updates create a new entry in the RevenueSourceItemPriceHistory table.
+        # IMPORTANT: save the item first so the FK can be written safely.
+        create_history = False
         if self.pk:
-            # Check if the amount has changed
             original_item = RevenueSourceItem.objects.get(pk=self.pk)
-            if original_item.amt != self.amt:
-                RevenueSourceItemPriceHistory.objects.create(
-                    rev_src_itm=self,
-                    amt=self.amt,
-                    effective_date=timezone.now(),
-                )
+            create_history = original_item.amt != self.amt
         else:
-            # Create initial price history for new items
+            create_history = True
+
+        super().save(*args, **kwargs)
+
+        if create_history:
             RevenueSourceItemPriceHistory.objects.create(
                 rev_src_itm=self,
                 amt=self.amt,
                 effective_date=timezone.now(),
             )
-
-        super().save(*args, **kwargs)
 
 
 class RevenueSourceItemPriceHistory(TimeStampedModel, models.Model):
