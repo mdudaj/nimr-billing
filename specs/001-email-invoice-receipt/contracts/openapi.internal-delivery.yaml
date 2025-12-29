@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: Internal Billing Delivery API
+  version: 0.1.0
+  description: |
+    Minimal internal contract for staff-controlled delivery status and re-send.
+    This is intended for authenticated/authorized staff only.
+
+servers:
+  - url: https://<public-host>
+
+paths:
+  /api/internal/billing/bills/{bill_id}/deliveries:
+    get:
+      summary: List invoice/receipt delivery records for a bill
+      parameters:
+        - in: path
+          name: bill_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delivery records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bill_id:
+                    type: string
+                  deliveries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Delivery'
+
+  /api/internal/billing/bills/{bill_id}/deliveries/resend:
+    post:
+      summary: Request a manual re-send of an invoice or receipt
+      parameters:
+        - in: path
+          name: bill_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [document_type]
+              properties:
+                document_type:
+                  type: string
+                  enum: [INVOICE, RECEIPT]
+                recipient_email:
+                  type: string
+                  description: Optional override; if omitted, uses policy-derived recipients.
+      responses:
+        '202':
+          description: Re-send accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ACCEPTED]
+                  event_key:
+                    type: string
+
+components:
+  schemas:
+    Delivery:
+      type: object
+      properties:
+        document_type:
+          type: string
+          enum: [INVOICE, RECEIPT]
+        recipient_email:
+          type: string
+        event_key:
+          type: string
+        status:
+          type: string
+          enum: [NOT_SENT, PENDING, SENT, FAILED]
+        attempt_count:
+          type: integer
+        last_attempt_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
