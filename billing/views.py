@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction, models
+from django.db import models, transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -206,25 +206,25 @@ class CustomerListView(LoginRequiredMixin, ListView):
     model = Customer
     template_name = "billing/customer/customer_list.html"
     paginate_by = 25
-    ordering = ['-created_at']
+    ordering = ["-created_at"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        
-        search = self.request.GET.get('search')
+
+        search = self.request.GET.get("search")
         if search:
             queryset = queryset.filter(
-                models.Q(first_name__icontains=search) |
-                models.Q(last_name__icontains=search) |
-                models.Q(tin__icontains=search) |
-                models.Q(email__icontains=search)
+                models.Q(first_name__icontains=search)
+                | models.Q(last_name__icontains=search)
+                | models.Q(tin__icontains=search)
+                | models.Q(email__icontains=search)
             )
-        
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search'] = self.request.GET.get('search', '')
+        context["search"] = self.request.GET.get("search", "")
         return context
 
 
@@ -480,26 +480,26 @@ class BillListView(LoginRequiredMixin, ListView):
     model = Bill
     template_name = "billing/bill/bill_list.html"
     paginate_by = 25
-    ordering = ['-created_at']
+    ordering = ["-created_at"]
 
     def get_queryset(self):
-        queryset = super().get_queryset().select_related('customer')
-        
+        queryset = super().get_queryset().select_related("customer")
+
         # Search functionality
-        search = self.request.GET.get('search')
+        search = self.request.GET.get("search")
         if search:
             queryset = queryset.filter(
-                models.Q(bill_id__icontains=search) |
-                models.Q(description__icontains=search) |
-                models.Q(customer__first_name__icontains=search) |
-                models.Q(customer__last_name__icontains=search)
+                models.Q(bill_id__icontains=search)
+                | models.Q(description__icontains=search)
+                | models.Q(customer__first_name__icontains=search)
+                | models.Q(customer__last_name__icontains=search)
             )
-        
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search'] = self.request.GET.get('search', '')
+        context["search"] = self.request.GET.get("search", "")
         return context
 
 
@@ -848,30 +848,25 @@ class BillControlNumberResponseCallbackView(View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-@method_decorator(csrf_exempt, name="dispatch")
 class BillControlNumberPaymentCallbackView(View):
-    def dispatch(self, *args, **kwargs):
-        logger.info(
-            "CSRF exempt applied to bill control number payment response callback request"
-        )
-        return super().dispatch(*args, **kwargs)
 
     def post(self, request):
-        pg_log = None  # Initialize pg_log as None
+        pg_log = None
 
         try:
-            # Extract and log the bill payment information
-            response_data = request.body.decode("utf-8")
-            logger.info(f"Received payment callback request with data: {response_data}")
+            raw_body = request.body.decode("utf-8", errors="ignore")
+            logger.info("Payment callback received")
 
-            # Parse the bill payment information
+            # ---- Parse safely ----
             try:
-                parsed_response = parse_payment_response(response_data)
-            except Exception as e:
-                logger.error(f"Failed to parse payment response: {e}")
-                return HttpResponse(
-                    "Invalid payment response", content_type="text/plain", status=400
-                )
+                parsed = parse_payment_response(raw_body)
+            except Exception:
+                logger.exception("Payment response parsing failed")
+                return HttpResponse("INVALID", status=400)
+
+            if not parsed or len(parsed) != 17:
+                logger.error("Parsed payment response has invalid structure")
+                return HttpResponse("INVALID", status=400)
 
             (
                 req_id,
@@ -891,38 +886,9 @@ class BillControlNumberPaymentCallbackView(View):
                 pyr_cell_num,
                 pyr_email,
                 pyr_name,
-            ) = parsed_response
+            ) = parsed
 
-            # Get Bill and create Payment Gateway Log
-            try:
-                bill = Bill.objects.get(bill_id=bill_id)
-            except Bill.DoesNotExist:
-                logger.error(f"Bill with bill_id {bill_id} does not exist.")
-                return HttpResponse(
-                    "Bill not found", content_type="text/plain", status=404
-                )
-            except Bill.MultipleObjectsReturned:
-                logger.error(f"Multiple bills found for bill_id {bill_id}.")
-                return HttpResponse(
-                    "Multiple bills found", content_type="text/plain", status=400
-                )
-
-            pg_log, created = PaymentGatewayLog.objects.get_or_create(
-                sys_info=bill.sys_info,
-                bill=bill,
-                req_id=req_id,
-                req_type="5",
-                status="PENDING",
-                status_desc="Payment response received. Processing...",
-                defaults={"req_data": xml_to_dict(response_data)},
-            )
-
-            if not created:
-                logger.info(
-                    f"PaymentGatewayLog entry for req_id {req_id} already exists."
-                )
-
-            # Generate and log the acknowledgement payload
+            # ---- ACK FIRST (critical) ----
             try:
                 ack_id = generate_request_id()
                 private_key = load_private_key(
@@ -934,56 +900,73 @@ class BillControlNumberPaymentCallbackView(View):
                     ack_sts_code="7101",
                     private_key=private_key,
                 )
-            except Exception as e:
-                logger.error(f"Failed to generate acknowledgement payload: {e}")
-                return HttpResponse(
-                    "Error generating acknowledgement",
-                    content_type="text/plain",
-                    status=500,
+            except Exception:
+                logger.exception("Failed to generate ACK")
+                return HttpResponse("ERROR", status=500)
+
+            # ---- Idempotency check ----
+            pg_log, created = PaymentGatewayLog.objects.get_or_create(
+                req_id=req_id,
+                req_type="5",
+                defaults={
+                    "status": "RECEIVED",
+                    "status_desc": "Callback received",
+                    "req_data": xml_to_dict(raw_body),
+                },
+            )
+
+            if not created:
+                logger.info("Duplicate callback received for req_id=%s", req_id)
+                return HttpResponse(ack_payload, content_type="text/xml", status=200)
+
+            # ---- Bill lookup ----
+            try:
+                bill = Bill.objects.get(bill_id=bill_id)
+                pg_log.bill = bill
+                pg_log.sys_info = bill.sys_info
+                pg_log.save(update_fields=["bill", "sys_info"])
+            except Bill.DoesNotExist:
+                pg_log.status = "ERROR"
+                pg_log.status_desc = "Bill not found"
+                pg_log.save()
+                return HttpResponse(ack_payload, content_type="text/xml", status=200)
+
+            # ---- Fire-and-forget Celery ----
+            try:
+                process_bill_payment_response.delay(
+                    req_id,
+                    bill_id,
+                    cntr_num,
+                    psp_code,
+                    psp_name,
+                    trx_id,
+                    payref_id,
+                    bill_amt,
+                    paid_amt,
+                    paid_ccy,
+                    coll_acc_num,
+                    trx_date,
+                    pay_channel,
+                    trdpty_trx_id,
+                    pyr_cell_num,
+                    pyr_email,
+                    pyr_name,
                 )
+                pg_log.status = "QUEUED"
+                pg_log.status_desc = "Payment processing queued"
+            except Exception:
+                logger.exception("Failed to enqueue Celery task")
+                pg_log.status = "ERROR"
+                pg_log.status_desc = "Celery enqueue failed"
 
-            # Process the bill payment asynchronously
-            logger.info(
-                f"Scheduling request {req_id} - {bill_id} for payment processing"
-            )
-            process_bill_payment_response.delay(
-                req_id,
-                bill_id,
-                cntr_num,
-                psp_code,
-                psp_name,
-                trx_id,
-                payref_id,
-                bill_amt,
-                paid_amt,
-                paid_ccy,
-                coll_acc_num,
-                trx_date,
-                pay_channel,
-                trdpty_trx_id,
-                pyr_cell_num,
-                pyr_email,
-                pyr_name,
-            )
-
-            # Log and update the payment gateway log with acknowledgement payload
-            logger.info(f"Sending acknowledgement payload: {ack_payload}")
             pg_log.req_ack = xml_to_dict(ack_payload)
             pg_log.save()
 
-            # Return an HTTP response with the acknowledgement payload
             return HttpResponse(ack_payload, content_type="text/xml", status=200)
 
-        except Exception as e:
-            logger.error(f"An error occurred while processing payment callback: {e}")
-
-            if pg_log:
-                pg_log.status = "ERROR"
-                pg_log.status_desc = f"Failed to process payment response: {e}"
-                pg_log.save()
-
-            # Return a 500 error response
-            return HttpResponse("ERROR", content_type="text/plain", status=500)
+        except Exception:
+            logger.exception("Unhandled exception in payment callback")
+            return HttpResponse("ERROR", status=500)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -1358,10 +1341,14 @@ class BillCancellationListView(LoginRequiredMixin, ListView):
     template_name = "billing/bill_cancellation/bill_cancellation_list.html"
     context_object_name = "cancelled_bills"
     paginate_by = 25
-    ordering = ['-created_at']
+    ordering = ["-created_at"]
 
     def get_queryset(self):
-        return super().get_queryset().select_related('bill', 'bill__customer', 'gen_by', 'appr_by')
+        return (
+            super()
+            .get_queryset()
+            .select_related("bill", "bill__customer", "gen_by", "appr_by")
+        )
 
 
 class BillCancellationDetailView(LoginRequiredMixin, DetailView):
@@ -1379,14 +1366,14 @@ class PaymentListView(LoginRequiredMixin, ListView):
     model = Payment
     template_name = "billing/payment/payment_list.html"
     paginate_by = 25
-    ordering = ['-created_at']
+    ordering = ["-created_at"]
 
     def get_queryset(self):
-        return super().get_queryset().select_related('bill', 'bill__customer')
+        return super().get_queryset().select_related("bill", "bill__customer")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search'] = self.request.GET.get('search', '')
+        context["search"] = self.request.GET.get("search", "")
         return context
 
 
@@ -1397,15 +1384,14 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
 
 def check_control_number_request_status(request, pk):
     """Check the status of a bill control number request."""
-    
+
     try:
         bill = get_object_or_404(Bill, id=pk)
     except Exception:
         return JsonResponse(
-            {"status": "NOT_FOUND", "message": "Bill not found."}, 
-            status=404
+            {"status": "NOT_FOUND", "message": "Bill not found."}, status=404
         )
-    
+
     try:
         # Fetch the latest log entry for this bill
         log = PaymentGatewayLog.objects.filter(bill=bill, req_type="1").latest(
@@ -1430,17 +1416,17 @@ def check_control_number_request_status(request, pk):
         # Return pending status instead of logging error
         return JsonResponse(
             {
-                "status": "PENDING", 
-                "message": "Payment status check in progress. Please try again later."
-            }, 
-            status=202
+                "status": "PENDING",
+                "message": "Payment status check in progress. Please try again later.",
+            },
+            status=202,
         )
 
     except Exception as e:
         # Only log critical errors, not missing records
         return JsonResponse(
-            {"status": "ERROR", "message": "Service temporarily unavailable"}, 
-            status=503
+            {"status": "ERROR", "message": "Service temporarily unavailable"},
+            status=503,
         )
 
 

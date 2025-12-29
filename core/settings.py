@@ -211,11 +211,22 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Cerely Configuration
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = None
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_STORE_ERRORS_EVEN_IF_IGNORED = False
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Africa/Dar_es_Salaam"
+
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": 3600,
+    "socket_timeout": 10,
+    "socket_connect_timeout": 10,
+    "retry_on_timeout": True,
+    "health_check_interval": 30,
+}
+
 
 # # Redis Configuration
 CACHES = {

@@ -250,7 +250,7 @@ def process_bill_control_number_response(
                     "cntr_num": cust_cntr_num,
                     "bill_print_url": f"{settings.PUBLIC_URL}{bill.get_transfer_print_url()}",
                 }
-                response = requests.post(url, headers=headers, json=payload)
+                response = requests.post(url, headers=headers, json=payload, verify=False)
 
                 # Update the PaymentGatewayLog object with the response data
                 if response.status_code == 200:
@@ -384,7 +384,7 @@ def process_bill_payment_response(
                 "pyr_cell_num": pyr_cell_num,
                 "bill_receipt_url": f"{settings.PUBLIC_URL}{bill.get_receipt_print_url()}",
             }
-            response = requests.post(url, headers=headers, json=payload)
+            response = requests.post(url, headers=headers, json=payload, verify=False)
 
             # Update the PaymentGatewayLog object with the response data
             if response.status_code == 200:
