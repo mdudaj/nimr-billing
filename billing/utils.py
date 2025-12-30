@@ -116,6 +116,114 @@ def generate_pdf(bill_obj, template_name, base_url):
     return pdf
 
 
+def select_billing_email_recipients(bill, payer_email=None):
+    """Return (recipients, suppression_reason).
+
+    Defaults are conservative: customer email only; payer email disabled unless enabled.
+    """
+
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    recipients = []
+
+    customer_email = getattr(getattr(bill, "customer", None), "email", None)
+    customer_email = (customer_email or "").strip()
+    payer_email = (payer_email or "").strip()
+
+    def _is_valid(email):
+        if not email:
+            return False
+        try:
+            validate_email(email)
+        except ValidationError:
+            return False
+        return True
+
+    if getattr(settings, "BILLING_EMAIL_DELIVERY_CUSTOMER_ENABLED", True) and _is_valid(
+        customer_email
+    ):
+        recipients.append(customer_email)
+
+    if getattr(settings, "BILLING_EMAIL_DELIVERY_PAYER_ENABLED", False) and _is_valid(
+        payer_email
+    ):
+        # Conservative default: only allow payer email when it matches customer email.
+        if payer_email and payer_email == customer_email:
+            recipients.append(payer_email)
+        else:
+            return recipients, "payer_email_not_allowed_by_policy"
+
+    recipients = sorted(set(recipients))
+    if recipients:
+        return recipients, None
+
+    if customer_email and not _is_valid(customer_email):
+        return [], "invalid_customer_email"
+
+    return [], "no_recipient_email"
+
+
+def generate_invoice_pdf_bytes(bill):
+    """Generate invoice PDF bytes using the existing transfer printout template."""
+
+    from django.contrib.staticfiles.storage import staticfiles_storage
+
+    logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+    qr_code_path = generate_qr_code(
+        {
+            "opType": "2",
+            "shortCode": "001001",
+            "billReference": bill.cntr_num,
+            "amount": bill.amt,
+            "billCcy": bill.currency,
+            "billExprDt": bill.expr_date.strftime("%Y-%m-%d"),
+            "billPayOpt": bill.pay_opt,
+            "billRsv01": f"National Institute for Medical Research|{bill.customer.get_name}",
+        },
+        logo_path=logo_path,
+    )
+
+    template = get_template("billing/printout/bill_transfer_print_pdf.html")
+    html = template.render(
+        {
+            "image_path": logo_path,
+            "qr_code_path": qr_code_path,
+            "bill": bill,
+            "print_date": timezone.now().strftime("%d-%m-%Y"),
+        }
+    )
+
+    stylesheets = [settings.STATIC_ROOT + "/css/bill_transfer_print.css"]
+    return HTML(
+        string=html,
+        base_url=settings.STATIC_ROOT,
+        url_fetcher=custom_url_fetcher,
+    ).write_pdf(stylesheets=stylesheets)
+
+
+def generate_receipt_pdf_bytes(payment):
+    """Generate receipt PDF bytes using the existing receipt printout template."""
+
+    from django.contrib.staticfiles.storage import staticfiles_storage
+
+    logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+    template = get_template("billing/printout/bill_receipt_print_pdf.html")
+    html = template.render(
+        {
+            "image_path": logo_path,
+            "bill_rcpt": payment,
+        }
+    )
+
+    stylesheets = [settings.STATIC_ROOT + "/css/bill_receipt_print.css"]
+    return HTML(
+        string=html,
+        base_url=settings.STATIC_ROOT,
+        url_fetcher=custom_url_fetcher,
+    ).write_pdf(stylesheets=stylesheets)
+
+
 def load_private_key(pfx_file, password):
     with open(pfx_file, "rb") as f:
         pfx_data = f.read()

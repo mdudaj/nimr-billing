@@ -26,7 +26,7 @@ This feature is primarily an addition to the existing billing domain to track ou
 
 Represents a single delivery “slot” that must be idempotent for a given bill, document, recipient, and trigger.
 
-**Fields**
+### Fields
 
 - `id` (pk)
 - `bill` (FK → Bill)
@@ -47,11 +47,11 @@ Represents a single delivery “slot” that must be idempotent for a given bill
 - `failure_reason` (text, nullable)
 - `metadata` (json/text; optional audit data such as subject, attachment filename, derived recipient source)
 
-**Constraints**
+### Constraints
 
 - Unique constraint on `(bill, document_type, recipient_email, event_key)` to guarantee idempotency for the same trigger.
 
-**Relationships**
+### Relationships
 
 - Many deliveries per bill (e.g., invoice and receipt; potentially multiple recipients depending on policy).
 

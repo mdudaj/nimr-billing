@@ -6,6 +6,7 @@ from rest_framework import serializers
 from billing.models import (
     Bill,
     BillingDepartment,
+    BillingEmailDelivery,
     BillItem,
     Customer,
     RevenueSourceItem,
@@ -146,3 +147,18 @@ class BillSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         raise serializers.ValidationError("Update operation not supported")
+
+
+class BillingEmailDeliverySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillingEmailDelivery
+        fields = [
+            "document_type",
+            "recipient_email",
+            "event_key",
+            "status",
+            "attempt_count",
+            "last_attempt_at",
+            "sent_at",
+            "failure_reason",
+        ]

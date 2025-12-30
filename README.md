@@ -9,6 +9,10 @@ Open-source **[Django Dashboard](https://appseed.us/admin-dashboards/django/)** 
 
 ## Features
 
+## Internal Specs
+
+- Email invoice/receipt delivery: [specs/001-email-invoice-receipt/quickstart.md](specs/001-email-invoice-receipt/quickstart.md)
+
 > `Have questions?` Contact **[Support](https://appseed.us/support/)** (Email & Discord) provided by **AppSeed**
 
 | Free Version                          | [PRO Version](https://appseed.us/product/berry-dashboard-pro/django/)    | [Custom Development](https://appseed.us/custom-development/) |  

@@ -8,15 +8,18 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from rest_framework import status, viewsets
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
 
-from billing.tasks import send_bill_control_number_request
-from billing.utils import generate_request_id
+from billing.models import Bill as BillingBill
+from billing.models import BillingEmailDelivery
+from billing.tasks import send_bill_control_number_request, send_bill_document_email
+from billing.utils import generate_request_id, select_billing_email_recipients
 
 from .models import ApiIdempotencyRecord, BillCntrlNum, BillPayment
-from .serializers import BillSerializer
+from .serializers import BillingEmailDeliverySerializer, BillSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -332,3 +335,95 @@ class BillCntrNumPaymentCallback(APIView):
                 {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class InternalBillDeliveriesView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, bill_id):
+        bill = BillingBill.objects.filter(bill_id=bill_id).first()
+        if not bill:
+            return Response(
+                {"message": "Bill not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        deliveries = BillingEmailDelivery.objects.filter(bill=bill).order_by(
+            "-created_at"
+        )
+        return Response(
+            {
+                "bill_id": bill.bill_id,
+                "deliveries": BillingEmailDeliverySerializer(
+                    deliveries, many=True
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class InternalBillDeliveriesResendView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, bill_id):
+        bill = BillingBill.objects.filter(bill_id=bill_id).first()
+        if not bill:
+            return Response(
+                {"message": "Bill not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        document_type = (request.data or {}).get("document_type")
+        recipient_email = (request.data or {}).get("recipient_email")
+
+        if document_type not in {"INVOICE", "RECEIPT"}:
+            return Response(
+                {"message": "Invalid document_type", "allowed": ["INVOICE", "RECEIPT"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determine recipients
+        if recipient_email:
+            recipients = [str(recipient_email).strip()]
+            suppression_reason = None
+        else:
+            payer_email = None
+            try:
+                payer_email = bill.payment.pyr_email
+            except Exception:
+                payer_email = None
+            recipients, suppression_reason = select_billing_email_recipients(
+                bill, payer_email=payer_email
+            )
+
+        event_key = f"manual:{uuid.uuid4()}"
+
+        if not recipients:
+            # Record a NOT_SENT attempt so staff can see why it didn't send.
+            BillingEmailDelivery.objects.create(
+                bill=bill,
+                document_type=document_type,
+                recipient_email=recipient_email or (bill.customer.email or ""),
+                event_key=event_key,
+                status="NOT_SENT",
+                enqueued_at=timezone.now(),
+                failure_reason=suppression_reason or "no_recipient_email",
+            )
+            return Response(
+                {"status": "ACCEPTED", "event_key": event_key},
+                status=status.HTTP_202_ACCEPTED,
+            )
+
+        for email in recipients:
+            delivery = BillingEmailDelivery.objects.create(
+                bill=bill,
+                document_type=document_type,
+                recipient_email=email,
+                event_key=event_key,
+                status="PENDING",
+                enqueued_at=timezone.now(),
+            )
+            send_bill_document_email.delay(delivery.id)
+
+        return Response(
+            {"status": "ACCEPTED", "event_key": event_key},
+            status=status.HTTP_202_ACCEPTED,
+        )

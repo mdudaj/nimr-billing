@@ -63,7 +63,7 @@ As authorized staff (authenticated staff users), I want to see whether an invoic
 ### Functional Requirements
 
 - **FR-001**: System MUST determine the recipient(s) for invoice and receipt delivery using stored customer/payer contact information and configured rules.
--  Configured rules are implemented via Django settings (with the “Default Policy (Recipient Selection)” as the default); no admin-managed rules UI is included in this feature.
+  Configured rules are implemented via Django settings (with the “Default Policy (Recipient Selection)” as the default); no admin-managed rules UI is included in this feature.
 - **FR-002**: System MUST generate an invoice document for a bill once it is ready for payment, including the bill identifier(s), amount, currency, due/expiry information, and payment instructions.
 - **FR-003**: System MUST generate a receipt document for a bill once payment is confirmed, including the bill identifier(s), amount paid, currency, payment reference(s), and payment date/time.
 - **FR-004**: System MUST deliver invoice and receipt emails asynchronously so that bill issuance and payment processing are not blocked by email delivery.

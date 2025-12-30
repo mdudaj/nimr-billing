@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta
 
 import requests
@@ -11,6 +12,7 @@ from django.utils import timezone
 
 from .models import (
     Bill,
+    BillingEmailDelivery,
     CancelledBill,
     Currency,
     ExchangeRate,
@@ -24,6 +26,8 @@ from .utils import (
     compose_bill_control_number_request_payload,
     compose_bill_reconciliation_request_payload,
     compose_bill_reconciliation_response_acknowledgement_payload,
+    generate_invoice_pdf_bytes,
+    generate_receipt_pdf_bytes,
     get_exchange_rate,
     load_private_key,
     parse_bill_control_number_request_acknowledgement,
@@ -31,10 +35,91 @@ from .utils import (
     parse_bill_reconciliation_request_acknowledgement,
     parse_bill_reconciliation_response,
     parse_payment_response,
+    select_billing_email_recipients,
     xml_to_dict,
 )
 
 logger = get_task_logger(__name__)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_bill_document_email(self, delivery_id):
+    """Send a single invoice/receipt email for a BillingEmailDelivery record."""
+
+    try:
+        delivery = BillingEmailDelivery.objects.select_related("bill").get(
+            id=delivery_id
+        )
+    except BillingEmailDelivery.DoesNotExist:
+        logger.warning("Delivery record not found", extra={"delivery_id": delivery_id})
+        return
+
+    if delivery.status == "SENT":
+        return
+    if delivery.status == "NOT_SENT":
+        return
+
+    now = timezone.now()
+    BillingEmailDelivery.objects.filter(id=delivery.id).update(
+        attempt_count=delivery.attempt_count + 1,
+        last_attempt_at=now,
+        failure_reason=None,
+    )
+
+    bill = delivery.bill
+    subject = f"{delivery.document_type.title()} for Bill {bill.bill_id}"  # refined later (T016/T021)
+    body = f"Please find your {delivery.document_type.lower()} attached for bill {bill.bill_id}."
+
+    attachment_name = None
+    attachment_bytes = None
+
+    if delivery.document_type == "INVOICE":
+        if not bill.cntr_num:
+            BillingEmailDelivery.objects.filter(id=delivery.id).update(
+                status="FAILED",
+                failure_reason="missing_control_number",
+            )
+            return
+        attachment_name = f"{bill.bill_id}_Invoice.pdf"
+        attachment_bytes = generate_invoice_pdf_bytes(bill)
+    elif delivery.document_type == "RECEIPT":
+        try:
+            payment = Payment.objects.get(bill=bill)
+        except Payment.DoesNotExist:
+            BillingEmailDelivery.objects.filter(id=delivery.id).update(
+                status="FAILED",
+                failure_reason="missing_payment",
+            )
+            return
+        attachment_name = f"{bill.bill_id}_Receipt.pdf"
+        attachment_bytes = generate_receipt_pdf_bytes(payment)
+    else:
+        BillingEmailDelivery.objects.filter(id=delivery.id).update(
+            status="FAILED",
+            failure_reason="unknown_document_type",
+        )
+        return
+
+    from_email = (
+        f"{settings.BILLING_EMAIL_SENDER_NAME} <{settings.BILLING_EMAIL_FROM_EMAIL}>"
+    )
+    email_obj = EmailMessage(subject, body, from_email, [delivery.recipient_email])
+    email_obj.attach(attachment_name, attachment_bytes, "application/pdf")
+
+    try:
+        email_obj.send(fail_silently=False)
+    except Exception as exc:
+        BillingEmailDelivery.objects.filter(id=delivery.id).update(
+            status="FAILED",
+            failure_reason=str(exc),
+        )
+        raise self.retry(exc=exc)
+
+    BillingEmailDelivery.objects.filter(id=delivery.id).update(
+        status="SENT",
+        sent_at=timezone.now(),
+        failure_reason=None,
+    )
 
 
 @shared_task
@@ -250,7 +335,9 @@ def process_bill_control_number_response(
                     "cntr_num": cust_cntr_num,
                     "bill_print_url": f"{settings.PUBLIC_URL}{bill.get_transfer_print_url()}",
                 }
-                response = requests.post(url, headers=headers, json=payload, verify=False)
+                response = requests.post(
+                    url, headers=headers, json=payload, verify=False
+                )
 
                 # Update the PaymentGatewayLog object with the response data
                 if response.status_code == 200:

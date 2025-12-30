@@ -1039,3 +1039,77 @@ class CancelledBill(TimeStampedModel, models.Model):
 
     def __str__(self):
         return f"Cancelled Bill - {self.bill.bill_id if self.bill else 'N/A'}"
+
+
+class BillingEmailDelivery(TimeStampedModel, models.Model):
+    DOCUMENT_TYPE_CHOICES = (
+        ("INVOICE", _("Invoice")),
+        ("RECEIPT", _("Receipt")),
+    )
+
+    STATUS_CHOICES = (
+        ("NOT_SENT", _("Not sent")),
+        ("PENDING", _("Pending")),
+        ("SENT", _("Sent")),
+        ("FAILED", _("Failed")),
+    )
+
+    bill = models.ForeignKey(
+        Bill,
+        on_delete=models.CASCADE,
+        related_name="email_deliveries",
+        verbose_name=_("Bill"),
+    )
+    document_type = models.CharField(
+        max_length=10,
+        choices=DOCUMENT_TYPE_CHOICES,
+        verbose_name=_("Document type"),
+    )
+    recipient_email = models.EmailField(verbose_name=_("Recipient email"))
+    event_key = models.CharField(
+        max_length=100,
+        verbose_name=_("Event key"),
+        help_text=_(
+            "Idempotency key for the triggering event (e.g., auto:payment_confirmed, manual:{uuid})"
+        ),
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+        verbose_name=_("Status"),
+    )
+    attempt_count = models.PositiveIntegerField(default=0, verbose_name=_("Attempts"))
+    enqueued_at = models.DateTimeField(
+        blank=True, null=True, verbose_name=_("Enqueued at")
+    )
+    last_attempt_at = models.DateTimeField(
+        blank=True, null=True, verbose_name=_("Last attempt at")
+    )
+    sent_at = models.DateTimeField(blank=True, null=True, verbose_name=_("Sent at"))
+    failure_reason = models.TextField(
+        blank=True, null=True, verbose_name=_("Failure reason")
+    )
+
+    class Meta:
+        verbose_name = _("Billing Email Delivery")
+        verbose_name_plural = _("Billing Email Deliveries")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["bill"], name="bed_bill_idx"),
+            models.Index(fields=["status"], name="bed_status_idx"),
+            models.Index(fields=["document_type"], name="bed_doc_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["bill", "document_type", "recipient_email", "event_key"],
+                name="uniq_bed_bill_doc_recipient_event",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.document_type} delivery for {self.bill.bill_id} to {self.recipient_email} "
+            f"({self.status})"
+        )

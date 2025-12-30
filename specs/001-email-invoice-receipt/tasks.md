@@ -10,8 +10,8 @@ description: "Task list for Email Invoice and Receipt Delivery"
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Create delivery settings defaults in core/settings.py (default recipient policy: customer-only; payer delivery disabled by default; sender name)
-- [ ] T002 Add internal docs links for feature in README.md (reference specs/001-email-invoice-receipt/quickstart.md)
+- [X] T001 Create delivery settings defaults in core/settings.py (default recipient policy: customer-only; payer delivery disabled by default; sender name)
+- [X] T002 Add internal docs links for feature in README.md (reference specs/001-email-invoice-receipt/quickstart.md)
 
 ---
 
@@ -73,7 +73,7 @@ description: "Task list for Email Invoice and Receipt Delivery"
 - [ ] T023 [US3] Implement POST resend in api/views.py (creates manual event_key, queues send for requested document_type)
 - [ ] T024 [US3] Support optional recipient_email override in api/views.py (otherwise use policy-derived recipients)
 - [ ] T025 [US3] Add authorization checks for internal endpoints (authenticated staff users only) in api/views.py
-- [ ] T026 [US3] Ensure manual re-send creates a new delivery attempt (manual:<uuid>) without breaking automated idempotency
+- [ ] T026 [US3] Ensure manual re-send creates a new delivery attempt (manual:{uuid}) without breaking automated idempotency
 
 **Checkpoint**: Staff can inspect deliveries and request re-send with auditable attempts.
 

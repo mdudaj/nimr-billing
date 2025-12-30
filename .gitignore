@@ -1,4 +1,5 @@
 *.pyc
+__pycache__/
 *.DS_Store
 *.egg*
 /dist/
@@ -16,5 +17,16 @@ backup/*
 
 #src
 *.sqlite*
+
+.venv/
+venv/
+
+pip-wheel-metadata/
+
+.pytest_cache/
+
+.mypy_cache/
+
+.ruff_cache/
 
 .env

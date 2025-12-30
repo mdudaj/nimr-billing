@@ -1,4 +1,5 @@
 import json
+import sys
 
 from django.apps import AppConfig
 from django.conf import settings
@@ -10,20 +11,29 @@ class BillingConfig(AppConfig):
     name = "billing"
 
     def ready(self):
-        from django_celery_beat.models import IntervalSchedule, PeriodicTask
+        # Avoid DB work during management commands that operate on model state.
+        # Hitting a remote/unavailable DB here can hang makemigrations/migrate.
+        if any(
+            cmd in sys.argv for cmd in ["makemigrations", "migrate", "showmigrations"]
+        ):
+            return
+
         from django.db import connection
+        from django_celery_beat.models import IntervalSchedule, PeriodicTask
 
         try:
             # Check if tables exist before trying to access them
             with connection.cursor() as cursor:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT EXISTS (
                         SELECT FROM information_schema.tables 
                         WHERE table_name = 'django_celery_beat_intervalschedule'
                     );
-                """)
+                """
+                )
                 tables_exist = cursor.fetchone()[0]
-                
+
             if tables_exist:
                 self.setup_periodic_tasks(IntervalSchedule, PeriodicTask)
         except (OperationalError, IntegrityError, Exception):

@@ -331,3 +331,17 @@ EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS")
 # Support Email
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL")
 DEVELOPER_EMAIL = os.environ.get("DEVELOPER_EMAIL")
+
+# Billing document email delivery (invoices/receipts)
+# Defaults are conservative: send to customer email only; payer delivery disabled.
+BILLING_EMAIL_DELIVERY_CUSTOMER_ENABLED = str2bool(
+    os.environ.get("BILLING_EMAIL_DELIVERY_CUSTOMER_ENABLED", "True")
+)
+BILLING_EMAIL_DELIVERY_PAYER_ENABLED = str2bool(
+    os.environ.get("BILLING_EMAIL_DELIVERY_PAYER_ENABLED", "False")
+)
+
+BILLING_EMAIL_SENDER_NAME = os.environ.get("BILLING_EMAIL_SENDER_NAME", "Billing")
+BILLING_EMAIL_FROM_EMAIL = os.environ.get(
+    "BILLING_EMAIL_FROM_EMAIL", SUPPORT_EMAIL or EMAIL_HOST_USER or "no-reply@localhost"
+)

@@ -1,12 +1,13 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    BillSubmissionView,
-    BillCntrNumResponseCallback,
     BillCntrNumPaymentCallback,
+    BillCntrNumResponseCallback,
+    BillSubmissionView,
+    InternalBillDeliveriesResendView,
+    InternalBillDeliveriesView,
 )
-
 
 router = DefaultRouter()
 
@@ -28,5 +29,15 @@ urlpatterns = [
         "bill-cntrl-num-payment-callback/",
         BillCntrNumPaymentCallback.as_view(),
         name="bill-cntrl-num-payment-callback",
+    ),
+    path(
+        "internal/billing/bills/<str:bill_id>/deliveries",
+        InternalBillDeliveriesView.as_view(),
+        name="internal-bill-deliveries",
+    ),
+    path(
+        "internal/billing/bills/<str:bill_id>/deliveries/resend",
+        InternalBillDeliveriesResendView.as_view(),
+        name="internal-bill-deliveries-resend",
     ),
 ]
