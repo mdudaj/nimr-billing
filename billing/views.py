@@ -402,13 +402,6 @@ class RevenueSourceCreateView(LoginRequiredMixin, CreateView):
             if revenue_source_items.is_valid():
                 revenue_source_items.instance = self.object
                 revenue_source_items.save()
-                # Create initial price history for each revenue source items
-                for item in revenue_source_items:
-                    RevenueSourceItemPriceHistory.objects.create(
-                        rev_src_itm=item,
-                        amt=item.amt,
-                        effective_date=timezone.now(),
-                    )
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -443,23 +436,6 @@ class RevenueSourceUpdateView(LoginRequiredMixin, UpdateView):
             self.object = form.save()
             if revenue_source_items.is_valid():
                 revenue_source_items.instance = self.object
-                for item_form in revenue_source_items:
-                    if item_form.instance.pk:  # Check if the item exists
-                        # Check if the amount has changed
-                        if item_form.instance.amt != item_form.cleaned_data.get("amt"):
-                            # Create a new price history record
-                            RevenueSourceItemPriceHistory.objects.create(
-                                rev_src_itm=item_form.instance,
-                                amt=item_form.cleaned_data.get("amt"),
-                                effective_date=timezone.now(),
-                            )
-                    else:
-                        # Create initial price history for new item
-                        RevenueSourceItemPriceHistory.objects.create(
-                            rev_src_itm=item_form.instance,
-                            amt=item_form.cleaned_data.get("amt"),
-                            effective_date=timezone.now(),
-                        )
                 # Save the revenue source items
                 revenue_source_items.save()
         return super().form_valid(form)
