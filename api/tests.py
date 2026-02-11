@@ -1,6 +1,8 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_api_key.models import APIKey
@@ -10,6 +12,7 @@ from billing.models import (
     BillingDepartment,
     Currency,
     Customer,
+    ExchangeRate,
     RevenueSource,
     RevenueSourceItem,
     ServiceProvider,
@@ -101,6 +104,36 @@ class BillSerializerTest(BillingFixtureMixin, TestCase):
         self.assertEqual(bill.dept, self.billing_dept)
         self.assertEqual(bill.customer.email, "john.smith@example.com")
         self.assertEqual(str(bill.amt), "100.00")
+
+    def test_bill_creation_converts_usd_to_tzs(self):
+        usd_currency = Currency.objects.create(code="USD", name="US Dollar")
+        ExchangeRate.objects.create(
+            currency=usd_currency,
+            trx_date=timezone.now().date(),
+            buying=Decimal("2400.00"),
+            selling=Decimal("2500.00"),
+        )
+
+        usd_item = RevenueSourceItem.objects.create(
+            rev_src=self.rev_src,
+            description="Revenue Item USD",
+            amt=Decimal("10.00"),
+            currency="USD",
+        )
+
+        data = self.valid_data.copy()
+        data["revenue_source"] = usd_item.id
+        data["currency"] = "TZS"
+
+        serializer = BillSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        bill = serializer.save()
+        bill.refresh_from_db()
+
+        item = bill.billitem_set.first()
+        self.assertIsNotNone(item)
+        self.assertEqual(item.amt, Decimal("25000.00"))
+        self.assertEqual(bill.amt, Decimal("25000.00"))
 
     def test_invalid_customer_data(self):
         invalid_data = self.valid_data.copy()

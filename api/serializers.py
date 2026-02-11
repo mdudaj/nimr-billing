@@ -123,12 +123,7 @@ class BillSerializer(serializers.ModelSerializer):
                 rev_src_itm=rev_src_itm,
             )
 
-            # Update the bill object with amount, equevalent amount, and max amount
-            bill.amt = sum([item.amt for item in bill.billitem_set.all()])
-            bill.eqv_amt = bill.amt
-            bill.min_amt = bill.amt
-            bill.max_amt = bill.amt
-            bill.save()
+            bill.recalculate_amounts()
 
             return bill
 

@@ -514,15 +514,7 @@ class BillCreateView(LoginRequiredMixin, CreateView):
                 bill_items.instance = self.object
                 bill_items.save()
 
-                self.object.amt = sum(
-                    item.amt for item in self.object.billitem_set.all()
-                )
-                self.object.eqv_amt = self.object.amt
-                self.object.min_amt = self.object.amt
-                self.object.max_amt = self.object.amt
-
-                # Save the bill object
-                self.object.save()
+                self.object.recalculate_amounts()
 
                 # Generate a unique request ID
                 req_id = generate_request_id()
@@ -580,15 +572,7 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
                 bill_items.instance = self.object
                 bill_items.save()
 
-                self.object.amt = sum(
-                    item.amt for item in self.object.billitem_set.all()
-                )
-                self.object.eqv_amt = self.object.amt
-                self.object.min_amt = self.object.amt
-                self.object.max_amt = self.object.amt
-
-                # Save the bill object
-                self.object.save()
+                self.object.recalculate_amounts()
 
                 # Check if cancelled bill exists
                 if CancelledBill.objects.filter(bill=self.object).exists():

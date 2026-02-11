@@ -545,6 +545,20 @@ class Bill(TimeStampedModel, models.Model):
                     item.amt = item.amt * exchange_rate.selling
                     item.save()
 
+    def recalculate_amounts(self):
+        items = list(self.billitem_set.select_related("rev_src_itm").all())
+        for item in items:
+            item.save()
+
+        total = sum(item.amt for item in items)
+        self.amt = total
+        self.eqv_amt = total
+        self.min_amt = total
+        self.max_amt = total
+        Bill.objects.filter(pk=self.pk).update(
+            amt=total, eqv_amt=total, min_amt=total, max_amt=total
+        )
+
     def get_absolute_url(self):
         return reverse("billing:bill-detail", kwargs={"pk": self.pk})
 

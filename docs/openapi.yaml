@@ -1,0 +1,399 @@
+openapi: 3.0.3
+info:
+  title: NIMR Billing API
+  version: "1.0.0"
+  description: |
+    REST API for bill submission, control-number callbacks, payment callbacks, and
+    internal delivery tracking. Base URL is `/api`.
+servers:
+  - url: /api
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Format: Api-Key <key>"
+    BasicAuth:
+      type: http
+      scheme: basic
+    SessionAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+  schemas:
+    CustomerPayload:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - cell_num
+        - email
+      properties:
+        first_name:
+          type: string
+        middle_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+        cell_num:
+          type: string
+          description: "12-digit number including country code (e.g., 255XXXXXXXXX)"
+        email:
+          type: string
+          format: email
+    BillSubmissionRequest:
+      type: object
+      required:
+        - sys_code
+        - bill_dept
+        - revenue_source
+        - customer
+      properties:
+        sys_code:
+          type: string
+        bill_dept:
+          type: string
+        description:
+          type: string
+          nullable: true
+        revenue_source:
+          type: integer
+        currency:
+          type: string
+          enum: ["TZS", "USD"]
+          description: "If TZS is provided and the revenue source item is USD, amounts are converted using the latest exchange rate."
+          nullable: true
+        customer:
+          $ref: "#/components/schemas/CustomerPayload"
+    BillSubmissionResponse:
+      type: object
+      properties:
+        req_id:
+          type: string
+        bill_id:
+          type: string
+        amount:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        message:
+          type: string
+    InProgressResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        req_id:
+          type: string
+          nullable: true
+        bill_id:
+          type: string
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    MissingFieldsResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        missing:
+          type: array
+          items:
+            type: string
+    BillCntrlNumCallbackRequest:
+      type: object
+      required:
+        - req_id
+        - bill_id
+        - cntrl_num
+        - bill_amt
+      properties:
+        req_id:
+          type: string
+        bill_id:
+          type: string
+        cntrl_num:
+          type: string
+        bill_amt:
+          type: string
+    BillCntrlNumCallbackResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        duplicate:
+          type: boolean
+    BillPaymentCallbackRequest:
+      type: object
+      required:
+        - bill_id
+        - psp_code
+        - psp_name
+        - trx_id
+        - payref_id
+        - bill_amt
+        - paid_amt
+        - paid_ccy
+        - coll_acc_num
+        - trx_date
+        - pay_channel
+        - pay_cell_num
+      properties:
+        bill_id:
+          type: string
+        psp_code:
+          type: string
+        psp_name:
+          type: string
+        trx_id:
+          type: string
+        payref_id:
+          type: string
+        bill_amt:
+          type: string
+        paid_amt:
+          type: string
+        paid_ccy:
+          type: string
+        coll_acc_num:
+          type: string
+        trx_date:
+          type: string
+          format: date-time
+        pay_channel:
+          type: string
+        pay_cell_num:
+          type: string
+    BillPaymentCallbackResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        duplicate:
+          type: boolean
+    BillingEmailDelivery:
+      type: object
+      properties:
+        document_type:
+          type: string
+        recipient_email:
+          type: string
+          nullable: true
+        event_key:
+          type: string
+        status:
+          type: string
+        attempt_count:
+          type: integer
+        last_attempt_at:
+          type: string
+          format: date-time
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
+    BillDeliveriesResponse:
+      type: object
+      properties:
+        bill_id:
+          type: string
+        deliveries:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillingEmailDelivery"
+    ResendDeliveryRequest:
+      type: object
+      required:
+        - document_type
+      properties:
+        document_type:
+          type: string
+          enum: ["INVOICE", "RECEIPT"]
+        recipient_email:
+          type: string
+          format: email
+          nullable: true
+    ResendDeliveryResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        event_key:
+          type: string
+paths:
+  /bill-submission/:
+    post:
+      summary: Submit a bill
+      description: |
+        Submits a bill and triggers control-number processing. Requests are idempotent
+        within 10-minute buckets based on payload and API key. If the bill currency
+        is TZS while the revenue source item is USD, amounts are converted using the
+        latest exchange rate.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillSubmissionRequest"
+      responses:
+        "201":
+          description: Bill created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillSubmissionResponse"
+        "202":
+          description: Duplicate submission still in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InProgressResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bill-cntrl-num-response-callback/:
+    post:
+      summary: Control-number callback
+      description: Records a control-number response (duplicates are safe).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillCntrlNumCallbackRequest"
+      responses:
+        "200":
+          description: Callback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillCntrlNumCallbackResponse"
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingFieldsResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bill-cntrl-num-payment-callback/:
+    post:
+      summary: Payment callback
+      description: Records a payment notification (duplicates are safe by trx_id).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillPaymentCallbackRequest"
+      responses:
+        "200":
+          description: Callback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillPaymentCallbackResponse"
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingFieldsResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /internal/billing/bills/{bill_id}/deliveries:
+    get:
+      summary: List delivery attempts
+      description: Returns delivery attempts for a bill. Requires an admin user.
+      security:
+        - BasicAuth: []
+        - SessionAuth: []
+      parameters:
+        - in: path
+          name: bill_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Delivery list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillDeliveriesResponse"
+        "404":
+          description: Bill not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /internal/billing/bills/{bill_id}/deliveries/resend:
+    post:
+      summary: Resend billing document email
+      description: Enqueues a resend for invoice or receipt. Requires an admin user.
+      security:
+        - BasicAuth: []
+        - SessionAuth: []
+      parameters:
+        - in: path
+          name: bill_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendDeliveryRequest"
+      responses:
+        "202":
+          description: Resend accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResendDeliveryResponse"
+        "400":
+          description: Invalid document_type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Bill not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
