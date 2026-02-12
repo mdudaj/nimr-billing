@@ -1304,11 +1304,32 @@ class BillCancellationListView(LoginRequiredMixin, ListView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return (
+        queryset = (
             super()
             .get_queryset()
             .select_related("bill", "bill__customer", "gen_by", "appr_by")
         )
+        search = self.request.GET.get("search")
+        if search:
+            search_query = (
+                models.Q(bill__bill_id__icontains=search)
+                | models.Q(bill__customer__first_name__icontains=search)
+                | models.Q(bill__customer__last_name__icontains=search)
+                | models.Q(bill__customer__tin__icontains=search)
+                | models.Q(bill__customer__email__icontains=search)
+            )
+            if search.isdigit():
+                search_num = int(search)
+                search_query |= models.Q(bill__cntr_num=search_num) | models.Q(
+                    cust_cntr_num=search_num
+                )
+            queryset = queryset.filter(search_query)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search"] = self.request.GET.get("search", "")
+        return context
 
 
 class BillCancellationDetailView(LoginRequiredMixin, DetailView):

@@ -15,6 +15,13 @@
         </a>
     </div>
 
+    <!-- Search Form -->
+    <div class="ui basic segment">
+        <form method="get" class="ui form">
+            {% include 'billing/components/search.html' with placeholder='Search cancelled bills by ID, customer, or control number...' %}
+        </form>
+    </div>
+
     <!-- Messages Block -->
     {% if messages %}
     <div class="ui floating message">
@@ -62,7 +69,12 @@
                             <i class="ban icon"></i>
                             No cancelled bills found
                         </div>
+                        {% if search %}
+                        <p>No cancelled bills match your search criteria.</p>
+                        <a href="{% url 'billing:cancelled-bill-list' %}" class="ui primary button">Clear Search</a>
+                        {% else %}
                         <p>No bill cancellations on record.</p>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
