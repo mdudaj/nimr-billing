@@ -5,6 +5,16 @@
 <!-- <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" /> -->
 
 <style>
+    .ui.vertical.menu.sidebar-menu {
+        margin-top: 40px !important;
+        max-height: calc(100% - 40px) !important;
+        height: calc(100% - 40px) !important;
+    }
+
+    .ui.container.grid.main-content {
+        margin-top: 40px !important;
+    }
+
     .pusher {
         display: flex;
         flex-direction: column;
@@ -18,5 +28,18 @@
 
     .ui.inverted.footer.segment {
         flex-shrink: 0;
+    }
+
+    @media (min-width: 768px) {
+        .ui.vertical.menu.sidebar-menu {
+            visibility: visible;
+            transform: translate3d(0, 0, 0);
+            width: 15rem !important;
+        }
+
+        .ui.container.grid.main-content {
+            margin-left: 15rem !important;
+            width: calc(100% - 15rem) !important;
+        }
     }
 </style>

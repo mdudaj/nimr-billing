@@ -1,7 +1,7 @@
 {% load static %}
 
 <div class="ui fluid action input">
-    <input type="text" name="search" placeholder="{{ placeholder|default:'Search...' }}" value="{{ search }}" id="search-input">
+    <input type="text" name="search" placeholder="{{ placeholder|default:'Search...' }}" value="{{ search }}" class="billing-live-search" data-live-filter-target="{{ live_filter_target|default:'' }}">
     <button class="ui button" type="submit">
         <i class="search icon"></i>
     </button>
@@ -9,12 +9,33 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('search-input');
-    const form = searchInput.closest('form');
-    
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            form.submit();
+    document.querySelectorAll('.billing-live-search').forEach(function(searchInput) {
+        const form = searchInput.closest('form');
+        const liveFilterTarget = searchInput.dataset.liveFilterTarget;
+
+        const applyLiveFilter = function() {
+            const searchValue = searchInput.value.trim().toLowerCase();
+            const rows = document.querySelectorAll(liveFilterTarget);
+            rows.forEach(function(row) {
+                const rowText = row.textContent.toLowerCase();
+                row.style.display = rowText.includes(searchValue) ? '' : 'none';
+            });
+        };
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                if (liveFilterTarget) {
+                    e.preventDefault();
+                    applyLiveFilter();
+                    return;
+                }
+                form.submit();
+            }
+        });
+
+        if (liveFilterTarget) {
+            searchInput.addEventListener('input', applyLiveFilter);
+            applyLiveFilter();
         }
     });
 });

@@ -464,12 +464,15 @@ class BillListView(LoginRequiredMixin, ListView):
         # Search functionality
         search = self.request.GET.get("search")
         if search:
-            queryset = queryset.filter(
+            search_query = (
                 models.Q(bill_id__icontains=search)
                 | models.Q(description__icontains=search)
                 | models.Q(customer__first_name__icontains=search)
                 | models.Q(customer__last_name__icontains=search)
             )
+            if search.isdigit():
+                search_query |= models.Q(cntr_num=int(search))
+            queryset = queryset.filter(search_query)
 
         return queryset
 

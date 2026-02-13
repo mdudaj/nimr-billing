@@ -19,7 +19,7 @@
     <!-- Search Form -->
     <div class="ui basic segment">
         <form method="get" class="ui form">
-            {% include 'billing/components/search.html' with placeholder='Search bills by ID, description, or customer name...' %}
+            {% include 'billing/components/search.html' with placeholder='Search bills by ID, description, control number, or customer name...' live_filter_target='#bill-list-table tbody tr[data-bill-id]' %}
         </form>
     </div>
 
@@ -38,7 +38,7 @@
     {% endif %}
     <!-- End of Messages Block -->
 
-    <table class="ui basic striped table">
+    <table class="ui basic striped table" id="bill-list-table">
         <thead>
             <tr>
                 <th>Bill Number</th>

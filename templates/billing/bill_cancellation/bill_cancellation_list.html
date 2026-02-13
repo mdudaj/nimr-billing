@@ -18,7 +18,7 @@
     <!-- Search Form -->
     <div class="ui basic segment">
         <form method="get" class="ui form">
-            {% include 'billing/components/search.html' with placeholder='Search cancelled bills by ID, customer, or control number...' %}
+            {% include 'billing/components/search.html' with placeholder='Search cancelled bills by ID, customer, or control number...' live_filter_target='#cancelled-bill-list-table tbody tr[data-cancelled-bill-id]' %}
         </form>
     </div>
 
@@ -36,7 +36,7 @@
     </div>
     {% endif %}
 
-    <table class="ui basic striped table">
+    <table class="ui basic striped table" id="cancelled-bill-list-table">
         <thead>
             <tr>
                 <th>Bill ID</th>
@@ -49,7 +49,7 @@
         </thead>
         <tbody>
             {% for cancelled_bill in cancelled_bills %}
-            <tr>
+            <tr data-cancelled-bill-id="{{ cancelled_bill.id }}">
                 <td><a href="{% url 'billing:bill-detail' cancelled_bill.bill.pk %}">{{ cancelled_bill.bill.bill_id }}</a></td>
                 <td>{{ cancelled_bill.reason|truncatechars:50 }}</td>
                 <td>{{ cancelled_bill.get_status_display }}</td>
