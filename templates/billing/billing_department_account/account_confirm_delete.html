@@ -1,0 +1,23 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Delete Collection Account {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui segment">
+        <h3 class="ui header">Delete collection account?</h3>
+        <p>
+            <strong>{{ object.billing_department.name }}</strong> —
+            {{ object.get_bank_display }} ({{ object.account_currency.code|default:"-" }}) —
+            {{ object.account_num }}
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <button class="ui negative button" type="submit">Delete</button>
+            <a class="ui button" href="{% url 'billing:dept-account-list' object.billing_department_id %}">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock content %}
+

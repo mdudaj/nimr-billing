@@ -169,6 +169,32 @@ def generate_invoice_pdf_bytes(bill):
 
     from django.contrib.staticfiles.storage import staticfiles_storage
 
+    # Prefer explicit collection accounts; fallback to the legacy single-account fields on BillingDepartment.
+    accounts = list(
+        bill.dept.accounts.select_related("account_currency")
+        .filter(account_currency__code=bill.currency)
+        .order_by("bank", "account_num")
+    )
+    if not accounts and getattr(bill.dept, "account_num", None):
+        # Only include legacy account when it matches the bill currency (or has no currency set).
+        if (
+            bill.dept.account_currency is None
+            or getattr(bill.dept.account_currency, "code", None) == bill.currency
+        ):
+            accounts = [
+                type(
+                    "LegacyDeptAccount",
+                    (),
+                    {
+                        "bank": bill.dept.bank,
+                        "bank_swift_code": bill.dept.bank_swift_code,
+                        "account_num": bill.dept.account_num,
+                        "account_currency": bill.dept.account_currency,
+                        "get_bank_display": bill.dept.get_bank_display,
+                    },
+                )()
+            ]
+
     logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
     qr_code_path = generate_qr_code(
         {
@@ -190,6 +216,7 @@ def generate_invoice_pdf_bytes(bill):
             "image_path": logo_path,
             "qr_code_path": qr_code_path,
             "bill": bill,
+            "accounts": accounts,
             "print_date": timezone.now().strftime("%d-%m-%Y"),
         }
     )

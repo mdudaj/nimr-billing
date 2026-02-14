@@ -38,10 +38,12 @@ from .forms import (
     ServiceProviderBillingDepartmentInlineFormSet,
     ServiceProviderForm,
     SystemInfoForm,
+    BillingDepartmentAccountForm,
 )
 from .models import (
     Bill,
     BillingDepartment,
+    BillingDepartmentAccount,
     BillItem,
     CancelledBill,
     Currency,
@@ -311,11 +313,12 @@ class ServiceProviderCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         context = self.get_context_data()
         billingdepartment = context["billing_departments"]
+        if not billingdepartment.is_valid():
+            return self.form_invalid(form)
         with transaction.atomic():
             self.object = form.save()
-            if billingdepartment.is_valid():
-                billingdepartment.instance = self.object
-                billingdepartment.save()
+            billingdepartment.instance = self.object
+            billingdepartment.save()
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -348,11 +351,12 @@ class ServiceProviderUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         context = self.get_context_data()
         billingdepartment = context["billing_departments"]
+        if not billingdepartment.is_valid():
+            return self.form_invalid(form)
         with transaction.atomic():
             self.object = form.save()
-            if billingdepartment.is_valid():
-                billingdepartment.instance = self.object
-                billingdepartment.save()
+            billingdepartment.instance = self.object
+            billingdepartment.save()
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -365,6 +369,69 @@ class ServiceProviderDeleteView(LoginRequiredMixin, DeleteView):
     model = ServiceProvider
     template_name = "billing/service_provider/sp_confirm_delete.html"
     success_url = reverse_lazy("billing:sp-list")
+
+
+class BillingDepartmentAccountListView(LoginRequiredMixin, ListView):
+    model = BillingDepartmentAccount
+    template_name = "billing/billing_department_account/account_list.html"
+    context_object_name = "accounts"
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("billing_department", "account_currency")
+            .filter(billing_department_id=self.kwargs["dept_pk"])
+            .order_by("bank", "account_currency__code", "account_num")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["department"] = get_object_or_404(
+            BillingDepartment, pk=self.kwargs["dept_pk"]
+        )
+        return context
+
+
+class BillingDepartmentAccountCreateView(LoginRequiredMixin, CreateView):
+    model = BillingDepartmentAccount
+    form_class = BillingDepartmentAccountForm
+    template_name = "billing/billing_department_account/account_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy(
+            "billing:dept-account-list", kwargs={"dept_pk": self.kwargs["dept_pk"]}
+        )
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["billing_department"] = self.kwargs["dept_pk"]
+        return initial
+
+    def form_valid(self, form):
+        form.instance.billing_department_id = self.kwargs["dept_pk"]
+        return super().form_valid(form)
+
+
+class BillingDepartmentAccountUpdateView(LoginRequiredMixin, UpdateView):
+    model = BillingDepartmentAccount
+    form_class = BillingDepartmentAccountForm
+    template_name = "billing/billing_department_account/account_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy(
+            "billing:dept-account-list", kwargs={"dept_pk": self.object.billing_department_id}
+        )
+
+
+class BillingDepartmentAccountDeleteView(LoginRequiredMixin, DeleteView):
+    model = BillingDepartmentAccount
+    template_name = "billing/billing_department_account/account_confirm_delete.html"
+
+    def get_success_url(self):
+        return reverse_lazy(
+            "billing:dept-account-list", kwargs={"dept_pk": self.object.billing_department_id}
+        )
 
 
 class RevenueSourceListView(LoginRequiredMixin, ListView):
@@ -1439,6 +1506,11 @@ class BillPrintPDFView(WeasyTemplateView):
         context = super().get_context_data(**kwargs)
         # Get the bill and generate the PDF filename dynamically using the bill_id
         bill = self.get_bill()
+        accounts = list(
+            bill.dept.accounts.select_related("account_currency")
+            .filter(account_currency__code=bill.currency)
+            .order_by("bank", "account_num")
+        )
         logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
         qr_code_path = generate_qr_code(
             {
@@ -1510,7 +1582,8 @@ class BillTransferPrintPDFView(WeasyTemplateView):
         )
         context["image_path"] = logo_path
         context["qr_code_path"] = qr_code_path
-        context["bill"] = self.get_bill()
+        context["bill"] = bill
+        context["accounts"] = accounts
         context["print_date"] = self.print_date
         return context
 

@@ -25,14 +25,17 @@
             <div class="ui segment">
                 <h2 class="ui header">Departments</h2>
                 <div class="ui very relaxed divided list">
-                    {% for department in serviceprovider.billingdepartment_set.all %}
-                    <div class="item">
-                        {{ department.name }}
-                        <div class="ui horizontal left pointing large label">
-                            {{ department.code }}
-                        </div>
-                    </div>
-                    {% empty %}
+                     {% for department in serviceprovider.billingdepartment_set.all %}
+                     <div class="item">
+                         {{ department.name }}
+                         <div class="ui horizontal left pointing large label">
+                             {{ department.code }}
+                         </div>
+                         <a class="ui tiny button" href="{% url 'billing:dept-account-list' department.pk %}">
+                             Accounts ({{ department.accounts.count }})
+                         </a>
+                     </div>
+                     {% empty %}
                     <div class="item">No departments found</div>
                     {% endfor %}
                 </div>
