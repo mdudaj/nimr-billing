@@ -6,6 +6,7 @@ import requests
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.staticfiles import finders
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -1485,8 +1486,62 @@ class BillPrintPDFView(WeasyTemplateView):
     template_name = "billing/printout/bill_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
-        settings.STATIC_ROOT
-        + "/css/bill_print.css",
+        str(settings.BASE_DIR / "static" / "css" / "bill_print.css"),
+    ]
+    pdf_attachment = True
+
+    # Genaration date
+    print_date = timezone.now().strftime("%d-%m-%Y")
+
+    def get_url_fetcher(self):
+        # Disable host and certificate verification
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        # Return a partial function with modified SSL context
+        return functools.partial(custom_url_fetcher, ssl_context=context)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Get the bill and generate the PDF filename dynamically using the bill_id
+        bill = self.get_bill()
+        logo_path = finders.find("img/coat-of-arms-of-tanzania.png")
+        if not logo_path:
+            logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        qr_code_path = generate_qr_code(
+            {
+                "opType": "2",
+                "shortCode": "001001",
+                "billReference": bill.cntr_num,
+                "amount": bill.amt,
+                "billCcy": bill.currency,
+                "billExprDt": bill.expr_date.strftime("%Y-%m-%d"),
+                "billPayOpt": bill.pay_opt,
+                "billRsv01": f"National Institute for Medical Research|{bill.customer.get_name}",
+            },
+            logo_path=logo_path,
+        )
+        context["image_path"] = logo_path
+        context["qr_code_path"] = qr_code_path
+        context["bill"] = bill
+        context["print_date"] = self.print_date
+        return context
+
+    def get_bill(self):
+        return Bill.objects.get(pk=self.kwargs["pk"])
+
+    def get_pdf_filename(self):
+        # Get the bill and generate the PDF filename dynamically using the bill_id
+        bill = self.get_bill()
+        return f"{bill.bill_id}.pdf"
+
+
+class BillTransferPrintPDFView(WeasyTemplateView):
+    template_name = "billing/printout/bill_transfer_print_pdf.html"
+    pdf_stylesheets = [
+        # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
+        str(settings.BASE_DIR / "static" / "css" / "bill_transfer_print.css"),
     ]
     pdf_attachment = True
 
@@ -1511,62 +1566,9 @@ class BillPrintPDFView(WeasyTemplateView):
             .filter(account_currency__code=bill.currency)
             .order_by("bank", "account_num")
         )
-        logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
-        qr_code_path = generate_qr_code(
-            {
-                "opType": "2",
-                "shortCode": "001001",
-                "billReference": bill.cntr_num,
-                "amount": bill.amt,
-                "billCcy": bill.currency,
-                "billExprDt": bill.expr_date.strftime("%Y-%m-%d"),
-                "billPayOpt": bill.pay_opt,
-                "billRsv01": f"National Institute for Medical Research|{bill.customer.get_name}",
-            },
-            logo_path=logo_path,
-        )
-        context["image_path"] = logo_path
-        context["qr_code_path"] = qr_code_path
-        context["bill"] = self.get_bill()
-        context["print_date"] = self.print_date
-        print(qr_code_path)
-        return context
-
-    def get_bill(self):
-        return Bill.objects.get(pk=self.kwargs["pk"])
-
-    def get_pdf_filename(self):
-        # Get the bill and generate the PDF filename dynamically using the bill_id
-        bill = self.get_bill()
-        return f"{bill.bill_id}.pdf"
-
-
-class BillTransferPrintPDFView(WeasyTemplateView):
-    template_name = "billing/printout/bill_transfer_print_pdf.html"
-    pdf_stylesheets = [
-        # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
-        settings.STATIC_ROOT
-        + "/css/bill_transfer_print.css",
-    ]
-    pdf_attachment = True
-
-    # Genaration date
-    print_date = timezone.now().strftime("%d-%m-%Y")
-
-    def get_url_fetcher(self):
-        # Disable host and certificate verification
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-
-        # Return a partial function with modified SSL context
-        return functools.partial(custom_url_fetcher, ssl_context=context)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Get the bill and generate the PDF filename dynamically using the bill_id
-        bill = self.get_bill()
-        logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        logo_path = finders.find("img/coat-of-arms-of-tanzania.png")
+        if not logo_path:
+            logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
         qr_code_path = generate_qr_code(
             {
                 "opType": "2",
@@ -1600,8 +1602,7 @@ class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
     template_name = "billing/printout/bill_receipt_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
-        settings.STATIC_ROOT
-        + "/css/bill_receipt_print.css",
+        str(settings.BASE_DIR / "static" / "css" / "bill_receipt_print.css"),
     ]
     pdf_attachment = True
 
@@ -1616,7 +1617,9 @@ class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        logo_path = finders.find("img/coat-of-arms-of-tanzania.png")
+        if not logo_path:
+            logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
         context["image_path"] = logo_path
         context["bill_rcpt"] = self.get_payment()
         return context
