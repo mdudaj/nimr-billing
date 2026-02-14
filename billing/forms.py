@@ -46,6 +46,12 @@ class BillingDepartmentForm(forms.ModelForm):
         fields = "__all__"
 
 
+class ServiceProviderBillingDepartmentInlineForm(forms.ModelForm):
+    class Meta:
+        model = BillingDepartment
+        fields = ("name", "code", "description")
+
+
 class BillingDepartmentAccountForm(forms.ModelForm):
     class Meta:
         model = BillingDepartmentAccount
@@ -67,7 +73,7 @@ class BaseServiceProviderBillingDepartmentInlineFormSet(forms.BaseInlineFormSet)
 ServiceProviderBillingDepartmentInlineFormSet = forms.inlineformset_factory(
     ServiceProvider,
     BillingDepartment,
-    form=BillingDepartmentForm,
+    form=ServiceProviderBillingDepartmentInlineForm,
     formset=BaseServiceProviderBillingDepartmentInlineFormSet,
     extra=1,
 )
