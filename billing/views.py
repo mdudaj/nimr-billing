@@ -6,7 +6,6 @@ import requests
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.staticfiles import finders
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -76,6 +75,7 @@ from .utils import (
     generate_pdf,
     generate_qr_code,
     generate_request_id,
+    _static_file_path,
     load_private_key,
     parse_bill_cancellation_response,
     parse_bill_control_number_response,
@@ -1486,7 +1486,7 @@ class BillPrintPDFView(WeasyTemplateView):
     template_name = "billing/printout/bill_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
-        str(settings.BASE_DIR / "static" / "css" / "bill_print.css"),
+        _static_file_path("css/bill_print.css"),
     ]
     pdf_attachment = True
 
@@ -1506,9 +1506,7 @@ class BillPrintPDFView(WeasyTemplateView):
         context = super().get_context_data(**kwargs)
         # Get the bill and generate the PDF filename dynamically using the bill_id
         bill = self.get_bill()
-        logo_path = finders.find("img/coat-of-arms-of-tanzania.png")
-        if not logo_path:
-            logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        logo_path = _static_file_path("img/coat-of-arms-of-tanzania.png")
         qr_code_path = generate_qr_code(
             {
                 "opType": "2",
@@ -1541,7 +1539,7 @@ class BillTransferPrintPDFView(WeasyTemplateView):
     template_name = "billing/printout/bill_transfer_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
-        str(settings.BASE_DIR / "static" / "css" / "bill_transfer_print.css"),
+        _static_file_path("css/bill_transfer_print.css"),
     ]
     pdf_attachment = True
 
@@ -1566,9 +1564,7 @@ class BillTransferPrintPDFView(WeasyTemplateView):
             .filter(account_currency__code=bill.currency)
             .order_by("bank", "account_num")
         )
-        logo_path = finders.find("img/coat-of-arms-of-tanzania.png")
-        if not logo_path:
-            logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        logo_path = _static_file_path("img/coat-of-arms-of-tanzania.png")
         qr_code_path = generate_qr_code(
             {
                 "opType": "2",
@@ -1602,7 +1598,7 @@ class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
     template_name = "billing/printout/bill_receipt_print_pdf.html"
     pdf_stylesheets = [
         # settings.STATIC_ROOT + "/semantic-ui/semantic.min.css",
-        str(settings.BASE_DIR / "static" / "css" / "bill_receipt_print.css"),
+        _static_file_path("css/bill_receipt_print.css"),
     ]
     pdf_attachment = True
 
@@ -1617,9 +1613,7 @@ class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        logo_path = finders.find("img/coat-of-arms-of-tanzania.png")
-        if not logo_path:
-            logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+        logo_path = _static_file_path("img/coat-of-arms-of-tanzania.png")
         context["image_path"] = logo_path
         context["bill_rcpt"] = self.get_payment()
         return context

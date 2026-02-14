@@ -34,15 +34,27 @@ def _static_file_path(relative_path: str) -> str:
     """
 
     found = finders.find(relative_path)
-    if found:
+    if found and os.path.exists(found):
         return found
-    try:
-        from django.contrib.staticfiles.storage import staticfiles_storage
 
-        return staticfiles_storage.path(relative_path)
-    except Exception:
-        # Keep the original error message meaningful for debugging.
-        return os.path.join(settings.STATIC_ROOT or "", relative_path)
+    # Common dev/docker fallback: static files live under BASE_DIR/static without collectstatic.
+    base_dir = str(getattr(settings, "BASE_DIR", ""))
+    if base_dir:
+        candidate = os.path.join(base_dir, "static", relative_path)
+        if os.path.exists(candidate):
+            return candidate
+
+    # Production fallback: collectstatic outputs to STATIC_ROOT.
+    static_root = getattr(settings, "STATIC_ROOT", "") or ""
+    if static_root:
+        candidate = os.path.join(static_root, relative_path)
+        if os.path.exists(candidate):
+            return candidate
+
+    # Last resort: defer to the configured storage path (may raise a useful error).
+    from django.contrib.staticfiles.storage import staticfiles_storage
+
+    return staticfiles_storage.path(relative_path)
 
 
 def clean_data(value):
