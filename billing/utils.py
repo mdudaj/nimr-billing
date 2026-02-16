@@ -5,6 +5,7 @@ import os
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
+from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from xml.etree.ElementTree import Element, SubElement, tostring
 
@@ -855,16 +856,40 @@ def parse_bill_reconciliation_response(response_data):
             else ""
         )
 
+        def _to_int(value: str, field: str) -> int:
+            value = clean_data(value or "")
+            if value == "":
+                raise ValueError(f"Missing required numeric field: {field}")
+            return int(value)
+
+        def _to_decimal(value: str, field: str) -> Decimal:
+            value = clean_data(value or "")
+            if value == "":
+                raise ValueError(f"Missing required numeric field: {field}")
+            try:
+                return Decimal(value)
+            except InvalidOperation as e:
+                raise ValueError(f"Invalid decimal for {field}: {value}") from e
+
+        def _to_aware_dt(value: str):
+            value = clean_data(value or "")
+            if not value:
+                return None
+            # Handle common GePG formats; `fromisoformat` doesn't accept 'Z'.
+            value = value.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(value)
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            return dt
+
         # Extract a list of reconciliation records from the response
         pmt_trx_dtls = []
 
         for pmt_trx_dtl in root.findall(".//PmtTrxDtl"):
             # Handle each field safely in case it's missing
             pmt_trx_dtl_data = {
-                "cust_cntr_num": clean_data(
-                    pmt_trx_dtl.find("CustCntrNum").text
-                    if pmt_trx_dtl.find("CustCntrNum") is not None
-                    else ""
+                "cust_cntr_num": _to_int(
+                    pmt_trx_dtl.findtext("CustCntrNum", default=""), "CustCntrNum"
                 ),
                 "grp_bill_id": clean_data(
                     pmt_trx_dtl.find("GrpBillId").text
@@ -881,10 +906,8 @@ def parse_bill_reconciliation_response(response_data):
                     if pmt_trx_dtl.find("BillId") is not None
                     else ""
                 ),
-                "bill_ctr_num": clean_data(
-                    pmt_trx_dtl.find("BillCtrNum").text
-                    if pmt_trx_dtl.find("BillCtrNum") is not None
-                    else ""
+                "bill_ctr_num": _to_int(
+                    pmt_trx_dtl.findtext("BillCtrNum", default=""), "BillCtrNum"
                 ),
                 "psp_code": clean_data(
                     pmt_trx_dtl.find("PspCode").text
@@ -906,15 +929,11 @@ def parse_bill_reconciliation_response(response_data):
                     if pmt_trx_dtl.find("PayRefId") is not None
                     else ""
                 ),
-                "bill_amt": float(
-                    pmt_trx_dtl.find("BillAmt").text
-                    if pmt_trx_dtl.find("BillAmt") is not None
-                    else 0.0
+                "bill_amt": _to_decimal(
+                    pmt_trx_dtl.findtext("BillAmt", default=""), "BillAmt"
                 ),
-                "paid_amt": float(
-                    pmt_trx_dtl.find("PaidAmt").text
-                    if pmt_trx_dtl.find("PaidAmt") is not None
-                    else 0.0
+                "paid_amt": _to_decimal(
+                    pmt_trx_dtl.findtext("PaidAmt", default=""), "PaidAmt"
                 ),
                 "bill_pay_opt": clean_data(
                     pmt_trx_dtl.find("BillPayOpt").text
@@ -931,10 +950,8 @@ def parse_bill_reconciliation_response(response_data):
                     if pmt_trx_dtl.find("CollAccNum") is not None
                     else ""
                 ),
-                "trx_date": (
-                    datetime.fromisoformat(pmt_trx_dtl.find("TrxDtTm").text)
-                    if pmt_trx_dtl.find("TrxDtTm") is not None
-                    else None
+                "trx_date": _to_aware_dt(
+                    pmt_trx_dtl.findtext("TrxDtTm", default="")
                 ),
                 "usd_pay_chnl": clean_data(
                     pmt_trx_dtl.find("UsdPayChnl").text
@@ -967,6 +984,12 @@ def parse_bill_reconciliation_response(response_data):
                     else ""
                 ),
             }
+
+            # Normalize optional empties to None for nullable model fields.
+            for k in ("sp_code", "trdpty_trx_id", "qt_ref_id", "pyr_cell_num", "pyr_email", "pyr_name"):
+                if pmt_trx_dtl_data.get(k) == "":
+                    pmt_trx_dtl_data[k] = None
+
             pmt_trx_dtls.append(pmt_trx_dtl_data)
 
         return res_id, req_id, pay_sts_code, pay_sts_desc, pmt_trx_dtls

@@ -865,11 +865,102 @@ class Payment(TimeStampedModel, models.Model):
     def issuer_name(self):
         return self.bill.dept.service_provider.name
 
+class ReconciliationRun(TimeStampedModel, models.Model):
+    """Audit header for a GePG reconciliation request/response cycle for a business date."""
+
+    STATUS_CHOICES = (
+        ("REQUESTED", _("Requested")),
+        ("ACKED", _("Acknowledged")),
+        ("RECEIVED", _("Response Received")),
+        ("PROCESSED", _("Processed")),
+        ("CLOSED", _("Closed")),
+        ("ERROR", _("Error")),
+    )
+
+    trx_date = models.DateField(verbose_name=_("Reconciliation Business Date"))
+    req_id = models.CharField(max_length=100, unique=True, verbose_name=_("Request ID"))
+    res_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name=_("Response ID"),
+    )
+    pay_sts_code = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name=_("Payment Status Code")
+    )
+    pay_sts_desc = models.CharField(
+        max_length=500, blank=True, null=True, verbose_name=_("Payment Status Description")
+    )
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="REQUESTED", verbose_name=_("Status")
+    )
+
+    requested_at = models.DateTimeField(blank=True, null=True)
+    acked_at = models.DateTimeField(blank=True, null=True)
+    received_at = models.DateTimeField(blank=True, null=True)
+    processed_at = models.DateTimeField(blank=True, null=True)
+    closed_at = models.DateTimeField(blank=True, null=True)
+
+    record_count = models.PositiveIntegerField(default=0)
+    totals_by_currency = models.JSONField(default=dict, blank=True)
+    internal_totals_by_currency = models.JSONField(default=dict, blank=True)
+    totals_match = models.BooleanField(default=False)
+
+    last_error = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Reconciliation Run")
+        verbose_name_plural = _("Reconciliation Runs")
+        ordering = ["-trx_date", "-created_at"]
+
+    def __str__(self):
+        return f"Reconciliation {self.trx_date} ({self.req_id})"
+
 
 class PaymentReconciliation(TimeStampedModel, models.Model):
-    """Payment Reconciliation Information."""
+    """Payment Reconciliation Information (GePG payment evidence)."""
 
-    # bill = models.ForeignKey(Bill, on_delete=models.CASCADE, verbose_name=_("Bill"))
+    MATCH_STATUS_CHOICES = (
+        ("UNMATCHED", _("Unmatched")),
+        ("MATCHED", _("Matched")),
+        ("AUTO_CREATED", _("Auto-created Payment")),
+        ("MISSING_INTERNAL_PAYMENT", _("Missing internal Payment")),
+        ("BILL_NOT_FOUND", _("Bill not found")),
+        ("MISMATCH", _("Mismatch")),
+    )
+
+    reconciliation_run = models.ForeignKey(
+        ReconciliationRun,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="transactions",
+    )
+    bill_ref = models.ForeignKey(
+        "Bill",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="reconciliation_transactions",
+    )
+    payment = models.ForeignKey(
+        "Payment",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="reconciliation_transactions",
+    )
+
+    match_status = models.CharField(
+        max_length=30,
+        choices=MATCH_STATUS_CHOICES,
+        default="UNMATCHED",
+        verbose_name=_("Match Status"),
+    )
+    mismatch_reason = models.TextField(blank=True, null=True)
+
     cust_cntr_num = models.BigIntegerField(verbose_name=_("Customer Control Number"))
     grp_bill_id = models.CharField(max_length=100, verbose_name=_("Group Bill ID"))
     sp_code = models.CharField(
@@ -944,6 +1035,9 @@ class PaymentReconciliation(TimeStampedModel, models.Model):
         verbose_name = _("Payment Reconciliation")
         verbose_name_plural = _("Payment Reconciliations")
         ordering = ["trx_date"]
+        constraints = [
+            models.UniqueConstraint(fields=["payref_id"], name="uniq_recon_payref_id"),
+        ]
 
     def __str__(self):
         return f"Payment Reconciliation for Bill ID - {self.bill_id}, Control Number - {self.cust_cntr_num} paid. Amount - {self.paid_amt}"

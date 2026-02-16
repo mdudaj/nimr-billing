@@ -26,6 +26,15 @@
             <span class="pc-mtext">Dashboard</span></a>
         </li>
 
+        {% if request.user.is_authenticated %}
+        <li class="pc-item">
+          <a href="{% url 'billing:reconciliation-run-list' %}" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-check"></i></span>
+            <span class="pc-mtext">Reconciliation</span>
+          </a>
+        </li>
+        {% endif %}
+
         {% admin_get_menu as app_list %}
         {% if app_list %}
           {% for app in app_list %}

@@ -1,0 +1,89 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Reconciliation {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Reconciliation Runs</h1>
+    </div>
+
+    <!-- Search Form -->
+    <div class="ui basic segment">
+        <form method="get" class="ui form">
+            {% include 'billing/components/search.html' with placeholder='Search by date (YYYY-MM-DD), req_id, res_id, status...' live_filter_target='#recon-run-table tbody tr[data-run-id]' %}
+        </form>
+    </div>
+
+    <table class="ui basic striped table" id="recon-run-table">
+        <thead>
+            <tr>
+                <th>Business Date</th>
+                <th>Status</th>
+                <th>Totals Match</th>
+                <th>Records</th>
+                <th>Request / Response</th>
+                <th>Processed</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in runs %}
+            <tr data-run-id="{{ run.id }}">
+                <td>{{ run.trx_date }}</td>
+                <td>
+                    {% if run.status == 'CLOSED' %}
+                        <div class="ui grey label">Closed</div>
+                    {% elif run.status == 'PROCESSED' %}
+                        <div class="ui green label">Processed</div>
+                    {% elif run.status == 'ERROR' %}
+                        <div class="ui red label">Error</div>
+                    {% else %}
+                        <div class="ui blue label">{{ run.status }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if run.totals_match %}
+                        <div class="ui green label">Yes</div>
+                    {% else %}
+                        <div class="ui orange label">No</div>
+                    {% endif %}
+                </td>
+                <td>{{ run.record_count }}</td>
+                <td class="single line">
+                    <div><strong>Req:</strong> <code>{{ run.req_id }}</code></div>
+                    <div><strong>Res:</strong> <code>{{ run.res_id|default:'-' }}</code></div>
+                </td>
+                <td>{{ run.processed_at|default:'-' }}</td>
+                <td class="single line">
+                    <a href="{% url 'billing:reconciliation-run-detail' run.pk %}" class="ui icon large button primary">
+                        <i class="icon info"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="center aligned">
+                    <div class="ui placeholder segment">
+                        <div class="ui icon header">
+                            <i class="check circle icon"></i>
+                            No reconciliation runs found
+                        </div>
+                        {% if search %}
+                        <p>No runs match your search criteria.</p>
+                        <a href="{% url 'billing:reconciliation-run-list' %}" class="ui primary button">Clear Search</a>
+                        {% else %}
+                        <p>Runs will appear after the daily reconciliation job executes or a callback is received.</p>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% include 'billing/components/pagination.html' %}
+</div>
+{% endblock content %}
+

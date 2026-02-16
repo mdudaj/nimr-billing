@@ -1,4 +1,6 @@
 import functools
+import csv
+import io
 import logging
 import ssl
 from datetime import date
@@ -9,6 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.paginator import Paginator
 from django.db import models, transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -58,6 +61,7 @@ from .models import (
     Payment,
     PaymentGatewayLog,
     PaymentReconciliation,
+    ReconciliationRun,
     RevenueSource,
     RevenueSourceItem,
     RevenueSourceItemPriceHistory,
@@ -1228,6 +1232,132 @@ class PaymentReconciliationCreateView(LoginRequiredMixin, CreateView):
         return self.render_to_response(self.get_context_data(form=form))
 
 
+class ReconciliationRunListView(LoginRequiredMixin, ListView):
+    model = ReconciliationRun
+    template_name = "billing/reconciliation/run_list.html"
+    context_object_name = "runs"
+    paginate_by = 25
+    ordering = ["-trx_date", "-created_at"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = (self.request.GET.get("search") or "").strip()
+        if search:
+            search_query = (
+                models.Q(req_id__icontains=search)
+                | models.Q(res_id__icontains=search)
+                | models.Q(status__icontains=search)
+                | models.Q(pay_sts_code__icontains=search)
+                | models.Q(pay_sts_desc__icontains=search)
+            )
+            try:
+                search_date = date.fromisoformat(search)
+            except ValueError:
+                search_date = None
+            if search_date:
+                search_query |= models.Q(trx_date=search_date)
+            queryset = queryset.filter(search_query)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search"] = self.request.GET.get("search", "")
+        return context
+
+
+class ReconciliationRunDetailView(LoginRequiredMixin, DetailView):
+    model = ReconciliationRun
+    template_name = "billing/reconciliation/run_detail.html"
+    context_object_name = "run"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        run = self.object
+
+        search = (self.request.GET.get("search") or "").strip()
+        txns = PaymentReconciliation.objects.select_related("bill_ref", "payment").filter(
+            reconciliation_run=run
+        ).order_by("-trx_date", "-id")
+        if search:
+            txns = txns.filter(
+                models.Q(bill_id__icontains=search)
+                | models.Q(payref_id__icontains=search)
+                | models.Q(trx_id__icontains=search)
+                | models.Q(currency__icontains=search)
+                | models.Q(match_status__icontains=search)
+                | models.Q(mismatch_reason__icontains=search)
+            )
+
+        paginator = Paginator(txns, 50)
+        page_number = self.request.GET.get("page") or 1
+        page_obj = paginator.get_page(page_number)
+
+        context["transactions"] = page_obj.object_list
+        context["page_obj"] = page_obj
+        context["is_paginated"] = page_obj.has_other_pages()
+        context["search"] = search
+
+        context["exceptions_count"] = PaymentReconciliation.objects.filter(
+            reconciliation_run=run
+        ).exclude(match_status="MATCHED").count()
+        context["matched_count"] = PaymentReconciliation.objects.filter(
+            reconciliation_run=run, match_status="MATCHED"
+        ).count()
+
+        return context
+
+
+class ReconciliationRunExceptionsCSVView(LoginRequiredMixin, View):
+    def get(self, request, pk: int):
+        run = get_object_or_404(ReconciliationRun, pk=pk)
+        qs = (
+            PaymentReconciliation.objects.select_related("bill_ref", "payment")
+            .filter(reconciliation_run=run)
+            .exclude(match_status="MATCHED")
+            .order_by("match_status", "-trx_date", "id")
+        )
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(
+            [
+                "trx_date",
+                "bill_id",
+                "payref_id",
+                "trx_id",
+                "currency",
+                "bill_amt",
+                "paid_amt",
+                "match_status",
+                "mismatch_reason",
+                "bill_pk",
+                "payment_bill_pk",
+            ]
+        )
+        for row in qs:
+            writer.writerow(
+                [
+                    row.trx_date.isoformat() if row.trx_date else "",
+                    row.bill_id,
+                    row.payref_id,
+                    row.trx_id,
+                    row.currency,
+                    row.bill_amt,
+                    row.paid_amt,
+                    row.match_status,
+                    row.mismatch_reason or "",
+                    row.bill_ref_id or "",
+                    getattr(row.payment, "bill_id", "") if row.payment_id else "",
+                ]
+            )
+
+        resp = HttpResponse(buf.getvalue(), content_type="text/csv")
+        resp["Content-Disposition"] = (
+            f'attachment; filename="reconciliation_{run.trx_date}_{run.req_id}_exceptions.csv"'
+        )
+        return resp
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class BillControlNumberResponseCallbackView(View):
     def dispatch(self, *args, **kwargs):
@@ -1440,8 +1570,6 @@ class BillControlNumberReconciliationCallbackView(View):
             # Extract the bill reconciliation information from the response data
             response_data = request.body.decode("utf-8")
 
-            print(response_data)
-
             # Log the incoming request data
             logger.info(
                 f"Received reconciliation callback request with data: {response_data}"
@@ -1457,7 +1585,15 @@ class BillControlNumberReconciliationCallbackView(View):
             ) = parse_bill_reconciliation_response(response_data)
 
             # Update the payment gateway log with the response data
-            pg_log = PaymentGatewayLog.objects.get(req_id=req_id)
+            pg_log, _ = PaymentGatewayLog.objects.get_or_create(
+                req_id=req_id,
+                req_type="6",
+                defaults={
+                    "status": "PENDING",
+                    "status_desc": "Reconciliation callback received",
+                    "res_data": xml_to_dict(response_data),
+                },
+            )
             pg_log.res_data = xml_to_dict(response_data)
 
             # Process the bill reconciliation information asynchronously
@@ -1477,9 +1613,9 @@ class BillControlNumberReconciliationCallbackView(View):
                 settings.ENCRYPTION_KEY, settings.ENCRYPTION_KEY_PASSWORD
             )
             ack_payload = compose_bill_reconciliation_response_acknowledgement_payload(
-                ack_id=req_id,
+                ack_id=generate_request_id(),
                 res_id=res_id,
-                ack_sts_code=7101,
+                ack_sts_code="7101",
                 private_key=private_key,
             )
 
@@ -1488,6 +1624,7 @@ class BillControlNumberReconciliationCallbackView(View):
 
             # Update the payment gateway log with the acknowledgement payload
             pg_log.res_ack = xml_to_dict(ack_payload)
+            pg_log.save(update_fields=["res_data", "res_ack", "updated_at"])
 
             # Return an HTTP response with the acknowledgement payload
             return HttpResponse(ack_payload, content_type="text/xml", status=200)

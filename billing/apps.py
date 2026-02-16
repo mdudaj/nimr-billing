@@ -19,7 +19,7 @@ class BillingConfig(AppConfig):
             return
 
         from django.db import connection
-        from django_celery_beat.models import IntervalSchedule, PeriodicTask
+        from django_celery_beat.models import CrontabSchedule, IntervalSchedule, PeriodicTask
 
         try:
             # Check if tables exist before trying to access them
@@ -41,6 +41,8 @@ class BillingConfig(AppConfig):
             pass
 
     def setup_periodic_tasks(self, IntervalSchedule, PeriodicTask):
+        from django_celery_beat.models import CrontabSchedule
+
         # Ensure that there is only one interval schedule
         schedule = IntervalSchedule.objects.filter(
             every=1, period=IntervalSchedule.HOURS
@@ -66,3 +68,27 @@ class BillingConfig(AppConfig):
                 "enabled": True,
             },
         )
+
+        # Daily GePG reconciliation (previous business day) + bounded backfill.
+        try:
+            recon_schedule, _ = CrontabSchedule.objects.get_or_create(
+                minute="15",
+                hour="6",
+                day_of_week="*",
+                day_of_month="*",
+                month_of_year="*",
+            )
+            PeriodicTask.objects.filter(name="gepg-reconciliation-daily").delete()
+            PeriodicTask.objects.update_or_create(
+                crontab=recon_schedule,
+                name="gepg-reconciliation-daily",
+                defaults={
+                    "task": "billing.tasks.request_daily_reconciliation",
+                    "crontab": recon_schedule,
+                    "args": json.dumps([7]),
+                    "enabled": True,
+                },
+            )
+        except Exception:
+            # Avoid hard failure if celery-beat tables/config are not ready.
+            pass

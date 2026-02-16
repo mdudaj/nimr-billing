@@ -1,0 +1,112 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Reconciliation Run {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Reconciliation: {{ run.trx_date }}</h1>
+        <a href="{% url 'billing:reconciliation-run-list' %}" class="ui right floated button">
+            <i class="angle left icon"></i> Back
+        </a>
+    </div>
+
+    <div class="ui segment">
+        <div class="ui small list">
+            <div class="item"><strong>Status:</strong> {{ run.status }}</div>
+            <div class="item"><strong>ReqId:</strong> <code>{{ run.req_id }}</code></div>
+            <div class="item"><strong>ResId:</strong> <code>{{ run.res_id|default:'-' }}</code></div>
+            <div class="item"><strong>PaySts:</strong> {{ run.pay_sts_code|default:'-' }} {{ run.pay_sts_desc|default:'' }}</div>
+            <div class="item"><strong>Totals Match:</strong> {{ run.totals_match }}</div>
+            <div class="item"><strong>Records:</strong> {{ run.record_count }}</div>
+            <div class="item"><strong>Matched:</strong> {{ matched_count }} | <strong>Exceptions:</strong> {{ exceptions_count }}</div>
+        </div>
+
+        <div class="ui divider"></div>
+
+        <div class="ui two column grid">
+            <div class="column">
+                <h4 class="ui header">GePG totals</h4>
+                <pre style="white-space: pre-wrap;">{{ run.totals_by_currency|default:"{}" }}</pre>
+            </div>
+            <div class="column">
+                <h4 class="ui header">Internal totals</h4>
+                <pre style="white-space: pre-wrap;">{{ run.internal_totals_by_currency|default:"{}" }}</pre>
+            </div>
+        </div>
+
+        <a class="ui button" href="{% url 'billing:reconciliation-run-exceptions-csv' run.pk %}">
+            <i class="download icon"></i> Export exceptions CSV
+        </a>
+    </div>
+
+    <!-- Search Form -->
+    <div class="ui basic segment">
+        <form method="get" class="ui form">
+            {% include 'billing/components/search.html' with placeholder='Search transactions by bill id, receipt, trx id, status...' live_filter_target='#recon-txn-table tbody tr[data-txn-id]' %}
+        </form>
+    </div>
+
+    <table class="ui basic striped table" id="recon-txn-table">
+        <thead>
+            <tr>
+                <th>Bill</th>
+                <th>Receipt</th>
+                <th>Trx</th>
+                <th>Amount</th>
+                <th>Match</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in transactions %}
+            <tr data-txn-id="{{ t.id }}">
+                <td class="single line">
+                    {{ t.bill_id }}
+                    {% if t.bill_ref_id %}
+                        <div><a href="{% url 'billing:bill-detail' t.bill_ref_id %}">Open Bill</a></div>
+                    {% endif %}
+                </td>
+                <td class="single line"><code>{{ t.payref_id }}</code></td>
+                <td class="single line"><code>{{ t.trx_id }}</code></td>
+                <td class="single line">
+                    <small>{{ t.currency }}</small> {{ t.paid_amt }}
+                </td>
+                <td>
+                    {% if t.match_status == 'MATCHED' %}
+                        <div class="ui green label">Matched</div>
+                    {% elif t.match_status == 'AUTO_CREATED' %}
+                        <div class="ui blue label">Auto-created</div>
+                    {% elif t.match_status == 'MISMATCH' %}
+                        <div class="ui orange label">Mismatch</div>
+                    {% else %}
+                        <div class="ui red label">{{ t.match_status }}</div>
+                    {% endif %}
+                </td>
+                <td>{{ t.mismatch_reason|default:'-' }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="center aligned">
+                    <div class="ui placeholder segment">
+                        <div class="ui icon header">
+                            <i class="list icon"></i>
+                            No transactions found
+                        </div>
+                        {% if search %}
+                        <p>No transactions match your search criteria.</p>
+                        {% else %}
+                        <p>No reconciliation transactions were received for this run.</p>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% include 'billing/components/pagination.html' %}
+</div>
+{% endblock content %}
+
