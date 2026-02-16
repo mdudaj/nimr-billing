@@ -32,6 +32,7 @@ from django.db.models.functions import TruncMonth
 
 from .forms import (
     BillCancellationForm,
+    BillCurrencyUpdateForm,
     BillForm,
     BillItemInlineFormSet,
     CancelledBillForm,
@@ -939,6 +940,161 @@ class BillUpdateView(LoginRequiredMixin, UpdateView):
         context = self.get_context_data()
         context["bill_items"] = context["bill_items"]
         return self.render_to_response(self.get_context_data(form=form))
+
+
+class BillCurrencyUpdateView(LoginRequiredMixin, UpdateView):
+    model = Bill
+    form_class = BillCurrencyUpdateForm
+    template_name = "billing/bill/bill_currency_update_form.html"
+    success_url = reverse_lazy("billing:bill-list")
+
+    @transaction.atomic
+    def form_valid(self, form):
+        self.object = form.save()
+
+        # Generate a unique request ID and request a new control number.
+        req_id = generate_request_id()
+        send_bill_control_number_request.delay(req_id, self.object.bill_id)
+        messages.success(
+            self.request,
+            f"Bill {self.object.bill_id} updated. New control number request {req_id} sent.",
+        )
+        return super().form_valid(form)
+
+
+class BillReplaceControlNumberView(LoginRequiredMixin, View):
+    template_name = "billing/bill/bill_replace_control_number_confirm.html"
+
+    def get(self, request, pk):
+        bill = get_object_or_404(Bill.objects.select_related("customer"), pk=pk)
+        if bill.is_paid():
+            messages.error(request, "Paid bills cannot be cancelled for control number replacement.")
+            return redirect("billing:bill-list")
+        if bill.is_cancelled():
+            messages.error(request, "This bill is already cancelled.")
+            return redirect("billing:bill-list")
+        if not bill.cntr_num:
+            messages.error(request, "This bill has no control number to replace yet.")
+            return redirect("billing:bill-list")
+
+        form = BillCancellationForm()
+        return render(request, self.template_name, {"bill": bill, "form": form})
+
+    @transaction.atomic
+    def post(self, request, pk):
+        bill = get_object_or_404(Bill.objects.select_related("customer"), pk=pk)
+        if bill.is_paid():
+            messages.error(request, "Paid bills cannot be cancelled for control number replacement.")
+            return redirect("billing:bill-list")
+        if bill.is_cancelled():
+            messages.error(request, "This bill is already cancelled.")
+            return redirect("billing:bill-list")
+        if not bill.cntr_num:
+            messages.error(request, "This bill has no control number to replace yet.")
+            return redirect("billing:bill-list")
+
+        form = BillCancellationForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, {"bill": bill, "form": form})
+
+        cancl_bill_obj = form.save(commit=False)
+        cancl_bill_obj.bill = bill
+        cancl_bill_obj.cust_cntr_num = bill.cntr_num
+        cancl_bill_obj.gen_by = request.user
+        cancl_bill_obj.appr_by = request.user
+        cancl_bill_obj.save()
+
+        req_id = generate_request_id()
+        url = settings.BILL_CANCELATION_URL
+        headers = {
+            "Content-Type": "application/xml",
+            "Gepg-Com": settings.GEPG_COM,
+            "Gepg-Code": settings.GEPG_CODE,
+            "Gepg-Alg": settings.GEPG_ALG,
+        }
+
+        try:
+            private_key = load_private_key(
+                settings.ENCRYPTION_KEY, settings.ENCRYPTION_KEY_PASSWORD
+            )
+        except Exception as e:
+            logger.error(f"Failed to load private key: {e}")
+            messages.error(request, "Internal error occurred. Please try again.")
+            return redirect("billing:bill-list")
+
+        payload = compose_bill_cancellation_payload(
+            req_id,
+            cancl_bill_obj,
+            settings.SP_GRP_CODE,
+            settings.SP_SYS_ID,
+            private_key,
+        )
+
+        pg_log = PaymentGatewayLog.objects.create(
+            bill=bill,
+            req_id=req_id,
+            req_type="7",
+            req_data=payload,
+        )
+
+        try:
+            response = requests.post(url, data=payload, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to send bill cancellation request: {e}"
+            pg_log.save()
+            logger.error(f"Failed to send bill cancellation request: {e}")
+            messages.error(request, "Internal error occurred. Please try again.")
+            return redirect("billing:bill-list")
+
+        try:
+            res_id, req_id, bill_id, res_sts_code, res_sts_desc = (
+                parse_bill_cancellation_response(response.text)
+            )
+        except Exception as e:
+            pg_log.status = "ERROR"
+            pg_log.status_desc = f"Failed to parse bill cancellation response: {e}"
+            pg_log.save()
+            logger.error(f"Failed to parse bill cancellation response: {e}")
+            messages.error(request, "Internal error occurred. Please try again.")
+            return redirect("billing:bill-list")
+
+        if res_sts_code != "7283":
+            pg_log.status = "ERROR"
+            pg_log.status_desc = res_sts_desc
+            pg_log.res_data = xml_to_dict(response.text)
+            pg_log.save()
+            messages.error(request, f"Failed to cancel bill {bill.bill_id}: {res_sts_desc}")
+            return redirect("billing:bill-list")
+
+        cancl_bill_obj.status = "CANCELLED"
+        cancl_bill_obj.save(update_fields=["status", "updated_at"])
+
+        Bill.objects.filter(pk=bill.pk).update(cntr_num=None)
+        pg_log.status = "SUCCESS"
+        pg_log.status_desc = res_sts_desc
+        pg_log.res_data = xml_to_dict(response.text)
+        pg_log.save()
+
+        ack_payload = compose_bill_cancellation_response_acknowledgement_payload(
+            ack_id=req_id,
+            res_id=res_id,
+            ack_sts_code="7101",
+            private_key=private_key,
+        )
+        pg_log.res_ack = xml_to_dict(ack_payload)
+        pg_log.save(update_fields=["res_ack", "updated_at"])
+        try:
+            requests.post(url, data=ack_payload, headers={"Content-Type": "application/xml"})
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send acknowledgement: {e}")
+
+        messages.success(
+            request,
+            f"Bill {bill.bill_id} cancelled. Please update currency to request a new control number.",
+        )
+        return redirect("billing:bill-update-currency", pk=bill.pk)
 
 
 class BillDeleteView(LoginRequiredMixin, DeleteView):

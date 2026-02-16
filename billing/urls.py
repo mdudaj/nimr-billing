@@ -15,8 +15,10 @@ from .views import (
     BillingIndexView,
     BillListView,
     BillPrintPDFView,
+    BillReplaceControlNumberView,
     BillReceiptPrintPDFView,
     BillTransferPrintPDFView,
+    BillCurrencyUpdateView,
     BillUpdateView,
     CustomerCreateView,
     CustomerDeleteView,
@@ -168,6 +170,16 @@ urlpatterns = [
     path("bill/<int:pk>/", BillDetailView.as_view(), name="bill-detail"),
     path("bill/create/", BillCreateView.as_view(), name="bill-create"),
     path("bill/<int:pk>/update/", BillUpdateView.as_view(), name="bill-update"),
+    path(
+        "bill/<int:pk>/update-currency/",
+        BillCurrencyUpdateView.as_view(),
+        name="bill-update-currency",
+    ),
+    path(
+        "bill/<int:pk>/replace-control-number/",
+        BillReplaceControlNumberView.as_view(),
+        name="bill-replace-control-number",
+    ),
     path("bill/<int:pk>/delete/", BillDeleteView.as_view(), name="bill-delete"),
     path("bill/print/<int:pk>/", BillPrintPDFView.as_view(), name="bill-print"),
     path(
