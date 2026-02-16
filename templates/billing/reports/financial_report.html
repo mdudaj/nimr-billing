@@ -1,0 +1,173 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Financial Reports {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+  <div class="ui clearing basic segment">
+    <h1 class="ui left floated header">Financial Reports / Statements</h1>
+  </div>
+
+  <div class="ui segment">
+    <form method="get" class="ui form">
+      <div class="fields">
+        <div class="four wide field">
+          <label>Period</label>
+          {{ filter_form.period }}
+          {% if filter_form.period.errors %}<div class="ui pointing red basic label">{{ filter_form.period.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="four wide field">
+          <label>Fiscal year</label>
+          {{ filter_form.fiscal_year }}
+          {% if filter_form.fiscal_year.errors %}<div class="ui pointing red basic label">{{ filter_form.fiscal_year.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="four wide field">
+          <label>Quarter</label>
+          {{ filter_form.quarter }}
+          {% if filter_form.quarter.errors %}<div class="ui pointing red basic label">{{ filter_form.quarter.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="four wide field">
+          <label>Basis</label>
+          {{ filter_form.basis }}
+          {% if filter_form.basis.errors %}<div class="ui pointing red basic label">{{ filter_form.basis.errors|join:", " }}</div>{% endif %}
+        </div>
+      </div>
+
+      <div class="fields">
+        <div class="four wide field">
+          <label>Start date</label>
+          {{ filter_form.start_date }}
+          {% if filter_form.start_date.errors %}<div class="ui pointing red basic label">{{ filter_form.start_date.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="four wide field">
+          <label>End date</label>
+          {{ filter_form.end_date }}
+          {% if filter_form.end_date.errors %}<div class="ui pointing red basic label">{{ filter_form.end_date.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="four wide field">
+          <label>Currency</label>
+          {{ filter_form.currency }}
+          {% if filter_form.currency.errors %}<div class="ui pointing red basic label">{{ filter_form.currency.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="four wide field">
+          <label>&nbsp;</label>
+          <button class="ui primary button" type="submit">
+            <i class="filter icon"></i> Apply Filter
+          </button>
+          <a class="ui button" href="{% url 'billing:financial-report' %}">
+            Clear
+          </a>
+        </div>
+      </div>
+
+      {% if filter_form.non_field_errors %}
+      <div class="ui negative message">
+        {{ filter_form.non_field_errors }}
+      </div>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if period_start and period_end %}
+  <div class="ui segment">
+    <div class="ui list">
+      <div class="item"><strong>Period:</strong> {{ period_label }} ({{ period_start }} to {{ period_end }})</div>
+      <div class="item"><strong>Basis:</strong>
+        {% if basis == 'COLLECTIONS' %}Collections (Payments){% else %}Bills Issued{% endif %}
+      </div>
+      <div class="item"><strong>Currency filter:</strong> {{ currency|default:"All" }}</div>
+    </div>
+  </div>
+
+  <div class="ui segment">
+    <h3 class="ui header">Summary by Currency</h3>
+    <table class="ui celled table">
+      <thead>
+        <tr>
+          <th>Currency</th>
+          <th class="right aligned">Count</th>
+          <th class="right aligned">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in totals_by_currency %}
+        <tr>
+          <td>{{ row.currency }}</td>
+          {% if basis == 'COLLECTIONS' %}
+            <td class="right aligned">{{ row.payments_count }}</td>
+            <td class="right aligned">{{ row.total_paid }}</td>
+          {% else %}
+            <td class="right aligned">{{ row.bills_count }}</td>
+            <td class="right aligned">{{ row.total_billed }}</td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="center aligned">No data</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if basis == 'COLLECTIONS' %}
+  <div class="ui segment">
+    <h3 class="ui header">Collections by Collection Account</h3>
+    <table class="ui celled table">
+      <thead>
+        <tr>
+          <th>Currency</th>
+          <th>Collection Account</th>
+          <th class="right aligned">Payments</th>
+          <th class="right aligned">Total Paid</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in totals_by_collection_account %}
+        <tr>
+          <td>{{ row.currency }}</td>
+          <td>{{ row.coll_acc_num }}</td>
+          <td class="right aligned">{{ row.payments_count }}</td>
+          <td class="right aligned">{{ row.total_paid }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="center aligned">No data</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="ui segment">
+    <h3 class="ui header">Totals by Revenue Stream (GFS)</h3>
+    <table class="ui celled table">
+      <thead>
+        <tr>
+          <th>Currency</th>
+          <th>GFS Code</th>
+          <th>Revenue Stream</th>
+          <th class="right aligned">Bills</th>
+          <th class="right aligned">Total Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in totals_by_revenue_stream %}
+        <tr>
+          <td>{{ row.bill__currency }}</td>
+          <td>{{ row.rev_src_itm__rev_src__gfs_code }}</td>
+          <td>{{ row.rev_src_itm__rev_src__name }}</td>
+          <td class="right aligned">{{ row.bills_count }}</td>
+          <td class="right aligned">{{ row.total_amount }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="center aligned">No data</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="ui message">
+      Note: This is a minimal statement view. Stream totals are computed from bill items for bills in the selected period
+      (paid bills when using Collections basis).
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock content %}
