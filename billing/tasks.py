@@ -812,8 +812,13 @@ def process_bill_reconciliation_response(
                 mismatch_reasons.append("paid_amount_mismatch")
             if payment.bill_amt != rec.bill_amt:
                 mismatch_reasons.append("bill_amount_mismatch")
-            if bill.cntr_num and int(bill.cntr_num) != int(rec.bill_ctr_num):
-                mismatch_reasons.append("control_number_mismatch")
+            try:
+                if bill.cntr_num and rec.bill_ctr_num and int(bill.cntr_num) != int(
+                    rec.bill_ctr_num
+                ):
+                    mismatch_reasons.append("control_number_mismatch")
+            except (TypeError, ValueError):
+                mismatch_reasons.append("control_number_format_error")
 
             if mismatch_reasons:
                 rec.match_status = "MISMATCH"
@@ -854,14 +859,20 @@ def process_bill_reconciliation_response(
             }
 
         internal_totals = {}
-        if run.trx_date:
-            for row in Payment.objects.filter(trx_date__date=run.trx_date).values(
-                "currency"
-            ).annotate(total=models.Sum("paid_amt"), count=models.Count("bill_id")):
-                internal_totals[row["currency"]] = {
-                    "total_paid": str(row["total"] or 0),
-                    "count": row["count"],
-                }
+        for row in (
+            PaymentReconciliation.objects.filter(
+                reconciliation_run=run, payment__isnull=False
+            )
+            .values("currency")
+            .annotate(
+                total=models.Sum("payment__paid_amt"),
+                count=models.Count("payment", distinct=True),
+            )
+        ):
+            internal_totals[row["currency"]] = {
+                "total_paid": str(row["total"] or 0),
+                "count": row["count"],
+            }
 
         run.record_count = PaymentReconciliation.objects.filter(
             reconciliation_run=run
@@ -936,27 +947,36 @@ def create_missing_payments_for_run(run_id: int):
     )
 
     for rec in qs:
+        if ReconciliationRun.objects.filter(id=run.id, status="CLOSED").exists():
+            return
+
         bill = rec.bill_ref
-        payment, created = Payment.objects.get_or_create(
-            bill=bill,
-            defaults={
-                "cust_cntr_num": rec.cust_cntr_num,
-                "psp_code": rec.psp_code,
-                "psp_name": rec.psp_name,
-                "trx_id": rec.trx_id,
-                "payref_id": rec.payref_id,
-                "bill_amt": rec.bill_amt,
-                "paid_amt": rec.paid_amt,
-                "currency": rec.currency,
-                "coll_acc_num": rec.coll_acc_num,
-                "trx_date": rec.trx_date,
-                "pay_channel": rec.usd_pay_chnl,
-                "trdpty_trx_id": rec.trdpty_trx_id,
-                "pyr_cell_num": rec.pyr_cell_num,
-                "pyr_email": rec.pyr_email,
-                "pyr_name": rec.pyr_name,
-            },
-        )
+        try:
+            payment, created = Payment.objects.get_or_create(
+                bill=bill,
+                defaults={
+                    "cust_cntr_num": rec.cust_cntr_num,
+                    "psp_code": rec.psp_code,
+                    "psp_name": rec.psp_name,
+                    "trx_id": rec.trx_id,
+                    "payref_id": rec.payref_id,
+                    "bill_amt": rec.bill_amt,
+                    "paid_amt": rec.paid_amt,
+                    "currency": rec.currency,
+                    "coll_acc_num": rec.coll_acc_num,
+                    "trx_date": rec.trx_date,
+                    "pay_channel": rec.usd_pay_chnl,
+                    "trdpty_trx_id": rec.trdpty_trx_id,
+                    "pyr_cell_num": rec.pyr_cell_num,
+                    "pyr_email": rec.pyr_email,
+                    "pyr_name": rec.pyr_name,
+                },
+            )
+        except IntegrityError:
+            payment = Payment.objects.filter(bill=bill).first()
+            if not payment:
+                raise
+            created = False
 
         rec.payment = payment
         if created:
@@ -970,8 +990,13 @@ def create_missing_payments_for_run(run_id: int):
                 mismatch_reasons.append("paid_amount_mismatch")
             if payment.bill_amt != rec.bill_amt:
                 mismatch_reasons.append("bill_amount_mismatch")
-            if bill.cntr_num and int(bill.cntr_num) != int(rec.bill_ctr_num):
-                mismatch_reasons.append("control_number_mismatch")
+            try:
+                if bill.cntr_num and rec.bill_ctr_num and int(bill.cntr_num) != int(
+                    rec.bill_ctr_num
+                ):
+                    mismatch_reasons.append("control_number_mismatch")
+            except (TypeError, ValueError):
+                mismatch_reasons.append("control_number_format_error")
 
             if mismatch_reasons:
                 rec.match_status = "MISMATCH"
