@@ -1440,8 +1440,6 @@ class BillControlNumberReconciliationCallbackView(View):
             # Extract the bill reconciliation information from the response data
             response_data = request.body.decode("utf-8")
 
-            print(response_data)
-
             # Log the incoming request data
             logger.info(
                 f"Received reconciliation callback request with data: {response_data}"
@@ -1457,7 +1455,15 @@ class BillControlNumberReconciliationCallbackView(View):
             ) = parse_bill_reconciliation_response(response_data)
 
             # Update the payment gateway log with the response data
-            pg_log = PaymentGatewayLog.objects.get(req_id=req_id)
+            pg_log, _ = PaymentGatewayLog.objects.get_or_create(
+                req_id=req_id,
+                req_type="6",
+                defaults={
+                    "status": "PENDING",
+                    "status_desc": "Reconciliation callback received",
+                    "res_data": xml_to_dict(response_data),
+                },
+            )
             pg_log.res_data = xml_to_dict(response_data)
 
             # Process the bill reconciliation information asynchronously
@@ -1477,9 +1483,9 @@ class BillControlNumberReconciliationCallbackView(View):
                 settings.ENCRYPTION_KEY, settings.ENCRYPTION_KEY_PASSWORD
             )
             ack_payload = compose_bill_reconciliation_response_acknowledgement_payload(
-                ack_id=req_id,
+                ack_id=generate_request_id(),
                 res_id=res_id,
-                ack_sts_code=7101,
+                ack_sts_code="7101",
                 private_key=private_key,
             )
 
@@ -1488,6 +1494,7 @@ class BillControlNumberReconciliationCallbackView(View):
 
             # Update the payment gateway log with the acknowledgement payload
             pg_log.res_ack = xml_to_dict(ack_payload)
+            pg_log.save(update_fields=["res_data", "res_ack", "updated_at"])
 
             # Return an HTTP response with the acknowledgement payload
             return HttpResponse(ack_payload, content_type="text/xml", status=200)

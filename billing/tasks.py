@@ -6,7 +6,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.mail import EmailMessage, send_mail
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 from django.http import JsonResponse
 from django.utils import timezone
 
@@ -18,6 +18,7 @@ from .models import (
     ExchangeRate,
     Payment,
     PaymentGatewayLog,
+    ReconciliationRun,
     PaymentReconciliation,
     SystemInfo,
 )
@@ -567,6 +568,21 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code, trxDt)
     # Send the bill reconciliation request to the GEPG API
     # This task is triggered by a scheduled task for reconciliation of the previous day starting between 0600hrs to 2359hrs
 
+    # Record the run early for audit/idempotency (even if the HTTP request fails).
+    try:
+        trx_date = datetime.strptime(trxDt, "%Y-%m-%d").date()
+    except ValueError:
+        trx_date = None
+
+    ReconciliationRun.objects.update_or_create(
+        req_id=req_id,
+        defaults={
+            "trx_date": trx_date or timezone.localdate(),
+            "status": "REQUESTED",
+            "requested_at": timezone.now(),
+        },
+    )
+
     # Load private key for signing the request
     private_key = load_private_key(
         settings.ENCRYPTION_KEY, settings.ENCRYPTION_KEY_PASSWORD
@@ -604,7 +620,7 @@ def send_bill_reconciliation_request(self, req_id, sp_grp_code, sys_code, trxDt)
         response = requests.post(url, headers=headers, data=payload)
 
         logger.info(
-            "Reconciliation request sent: Status code {response.status_code} - Response {response.text}"
+            f"Reconciliation request sent: Status code {response.status_code} - Response {response.text}"
         )
 
         # Update the PaymentGatewayLog object with the acknowledgment response data
@@ -670,6 +686,11 @@ def process_bill_reconciliation_request_acknowledgement(response_data):
                 status="PENDING",
                 status_desc=ack_sts_desc,
             )
+            ReconciliationRun.objects.filter(req_id=req_id).update(
+                status="ACKED",
+                acked_at=timezone.now(),
+                last_error=None,
+            )
         else:
             # Any other acknowledgement status code, log and send an email notification to developers
             logger.error(
@@ -679,6 +700,11 @@ def process_bill_reconciliation_request_acknowledgement(response_data):
             PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
                 status="ERROR",
                 status_desc=ack_sts_desc,
+            )
+            ReconciliationRun.objects.filter(req_id=req_id).update(
+                status="ERROR",
+                acked_at=timezone.now(),
+                last_error=ack_sts_desc,
             )
             send_mail_notification.delay(
                 settings.DEVELOPER_EMAIL,
@@ -692,6 +718,10 @@ def process_bill_reconciliation_request_acknowledgement(response_data):
         PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
             status="ERROR",
             status_desc=f"Error processing bill reconciliation request acknowledgement: {str(e)}",
+        )
+        ReconciliationRun.objects.filter(req_id=req_id).update(
+            status="ERROR",
+            last_error=str(e),
         )
         logger.error(
             f"Error processing bill reconciliation request acknowledgement: {str(e)}"
@@ -709,27 +739,150 @@ def process_bill_reconciliation_response(
 ):
     # Process the bill reconciliation response received from the GEPG API
     try:
-        # Check if payment transaction details are available and create PaymentReconciliation objects
-        if pmt_trx_dtls:
-            for pmt_trx_dtl in pmt_trx_dtls:
-                PaymentReconciliation.objects.create(**pmt_trx_dtl)
+        run, _ = ReconciliationRun.objects.update_or_create(
+            req_id=req_id,
+            defaults={
+                "res_id": res_id,
+                "pay_sts_code": pay_sts_code,
+                "pay_sts_desc": pay_sts_desc,
+                "status": "RECEIVED",
+                "received_at": timezone.now(),
+                "last_error": None,
+            },
+        )
 
-            # Update the PaymentGatewayLog object with status and description
-            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
-                status="SUCCESS",
-                status_desc=f"Bill reconciliation response processed successfully. {len(pmt_trx_dtls)} reconciliation data.",
+        processed = 0
+
+        def _match_and_flag(rec: PaymentReconciliation):
+            mismatch_reasons = []
+
+            bill = Bill.objects.filter(bill_id=rec.bill_id).first()
+            if not bill:
+                rec.match_status = "BILL_NOT_FOUND"
+                rec.mismatch_reason = "bill_not_found"
+                rec.bill_ref = None
+                rec.payment = None
+                rec.save(
+                    update_fields=[
+                        "match_status",
+                        "mismatch_reason",
+                        "bill_ref",
+                        "payment",
+                        "updated_at",
+                    ]
+                )
+                return
+
+            rec.bill_ref = bill
+
+            payment = Payment.objects.filter(bill=bill).first()
+            rec.payment = payment
+
+            if not payment:
+                rec.match_status = "MISSING_INTERNAL_PAYMENT"
+                rec.mismatch_reason = None
+                rec.save(
+                    update_fields=[
+                        "match_status",
+                        "mismatch_reason",
+                        "bill_ref",
+                        "payment",
+                        "updated_at",
+                    ]
+                )
+                return
+
+            # Basic accuracy checks
+            if payment.currency != rec.currency:
+                mismatch_reasons.append("currency_mismatch")
+            if payment.paid_amt != rec.paid_amt:
+                mismatch_reasons.append("paid_amount_mismatch")
+            if payment.bill_amt != rec.bill_amt:
+                mismatch_reasons.append("bill_amount_mismatch")
+            if bill.cntr_num and int(bill.cntr_num) != int(rec.bill_ctr_num):
+                mismatch_reasons.append("control_number_mismatch")
+
+            if mismatch_reasons:
+                rec.match_status = "MISMATCH"
+                rec.mismatch_reason = ",".join(mismatch_reasons)
+            else:
+                rec.match_status = "MATCHED"
+                rec.mismatch_reason = None
+
+            rec.save(
+                update_fields=[
+                    "match_status",
+                    "mismatch_reason",
+                    "bill_ref",
+                    "payment",
+                    "updated_at",
+                ]
             )
 
-        # Log the successful reconciliation response
-        logger.info(
-            f"Bill reconciliation response for request ID: {req_id} processed successfully."
+        # Check if payment transaction details are available and upsert records idempotently.
+        if pmt_trx_dtls:
+            for pmt_trx_dtl in pmt_trx_dtls:
+                pmt_trx_dtl["reconciliation_run"] = run
+                rec, _created = PaymentReconciliation.objects.update_or_create(
+                    payref_id=pmt_trx_dtl["payref_id"],
+                    defaults=pmt_trx_dtl,
+                )
+                _match_and_flag(rec)
+                processed += 1
+
+        # Control totals
+        totals = {}
+        for row in PaymentReconciliation.objects.filter(reconciliation_run=run).values(
+            "currency"
+        ).annotate(total=models.Sum("paid_amt"), count=models.Count("id")):
+            totals[row["currency"]] = {
+                "total_paid": str(row["total"] or 0),
+                "count": row["count"],
+            }
+
+        internal_totals = {}
+        if run.trx_date:
+            for row in Payment.objects.filter(trx_date__date=run.trx_date).values(
+                "currency"
+            ).annotate(total=models.Sum("paid_amt"), count=models.Count("bill_id")):
+                internal_totals[row["currency"]] = {
+                    "total_paid": str(row["total"] or 0),
+                    "count": row["count"],
+                }
+
+        run.record_count = PaymentReconciliation.objects.filter(
+            reconciliation_run=run
+        ).count()
+        run.totals_by_currency = totals
+        run.internal_totals_by_currency = internal_totals
+        run.totals_match = totals == internal_totals
+        run.status = "PROCESSED"
+        run.processed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "record_count",
+                "totals_by_currency",
+                "internal_totals_by_currency",
+                "totals_match",
+                "status",
+                "processed_at",
+                "updated_at",
+            ]
         )
 
-        # Update the PaymentGatewayLog object with the status and description
+        # Update the PaymentGatewayLog object with status and description (once).
+        desc = (
+            f"Bill reconciliation processed. {processed} record(s) received."
+            if processed
+            else "Bill reconciliation processed. No payment transactions received."
+        )
         PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
             status="SUCCESS",
-            status_desc=f"Bill reconciliation response processed successfully. No payment transactions to reconcile at this time.",
+            status_desc=desc,
         )
+
+        # Queue auto-creation of missing Payment rows (controlled job).
+        create_missing_payments_for_run.delay(run.id)
 
     except Exception as e:
         # Handle any exceptions that occur during the processing of the response
@@ -738,6 +891,10 @@ def process_bill_reconciliation_response(
             status="ERROR",
             status_desc=f"Error processing bill reconciliation response: {str(e)}",
         )
+        ReconciliationRun.objects.filter(req_id=req_id).update(
+            status="ERROR",
+            last_error=str(e),
+        )
         logger.error(
             f"Error processing bill reconciliation response for request ID: {req_id} - {str(e)}"
         )
@@ -745,6 +902,87 @@ def process_bill_reconciliation_response(
             settings.DEVELOPER_EMAIL,
             "Payment Gateway API Error",
             f"Error processing bill reconciliation response for request ID: {req_id} - {str(e)}",
+        )
+
+
+@shared_task
+def create_missing_payments_for_run(run_id: int):
+    """Create internal Payment records for reconciliation rows missing an internal Payment (async, controlled)."""
+    try:
+        run = ReconciliationRun.objects.get(id=run_id)
+    except ReconciliationRun.DoesNotExist:
+        return
+
+    qs = PaymentReconciliation.objects.select_related("bill_ref").filter(
+        reconciliation_run=run,
+        match_status="MISSING_INTERNAL_PAYMENT",
+        bill_ref__isnull=False,
+    )
+
+    for rec in qs:
+        bill = rec.bill_ref
+        payment, created = Payment.objects.get_or_create(
+            bill=bill,
+            defaults={
+                "cust_cntr_num": rec.cust_cntr_num,
+                "psp_code": rec.psp_code,
+                "psp_name": rec.psp_name,
+                "trx_id": rec.trx_id,
+                "payref_id": rec.payref_id,
+                "bill_amt": rec.bill_amt,
+                "paid_amt": rec.paid_amt,
+                "currency": rec.currency,
+                "coll_acc_num": rec.coll_acc_num,
+                "trx_date": rec.trx_date,
+                "pay_channel": rec.usd_pay_chnl,
+                "trdpty_trx_id": rec.trdpty_trx_id,
+                "pyr_cell_num": rec.pyr_cell_num,
+                "pyr_email": rec.pyr_email,
+                "pyr_name": rec.pyr_name,
+            },
+        )
+
+        rec.payment = payment
+        if created:
+            rec.match_status = "AUTO_CREATED"
+            rec.mismatch_reason = None
+        else:
+            mismatch_reasons = []
+            if payment.currency != rec.currency:
+                mismatch_reasons.append("currency_mismatch")
+            if payment.paid_amt != rec.paid_amt:
+                mismatch_reasons.append("paid_amount_mismatch")
+            if payment.bill_amt != rec.bill_amt:
+                mismatch_reasons.append("bill_amount_mismatch")
+            if bill.cntr_num and int(bill.cntr_num) != int(rec.bill_ctr_num):
+                mismatch_reasons.append("control_number_mismatch")
+
+            if mismatch_reasons:
+                rec.match_status = "MISMATCH"
+                rec.mismatch_reason = ",".join(mismatch_reasons)
+            else:
+                rec.match_status = "MATCHED"
+                rec.mismatch_reason = None
+
+        rec.save(
+            update_fields=["payment", "match_status", "mismatch_reason", "updated_at"]
+        )
+
+
+@shared_task
+def request_daily_reconciliation(backfill_days: int = 7):
+    """Trigger GePG reconciliation requests for the previous business date + bounded backfill (<= 7 days)."""
+    # GePG expects reconciliation requests for the previous day between 06:00-23:59.
+    target = timezone.localdate() - timedelta(days=1)
+    days = max(1, min(int(backfill_days or 1), 7))
+
+    for offset in range(days):
+        trx_date = target - timedelta(days=offset)
+        if ReconciliationRun.objects.filter(trx_date=trx_date).exclude(status="ERROR").exists():
+            continue
+        req_id = str(uuid.uuid4())
+        send_bill_reconciliation_request.delay(
+            req_id, settings.SP_GRP_CODE, settings.SP_SYS_ID, trx_date.isoformat()
         )
 
 
