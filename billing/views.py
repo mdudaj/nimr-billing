@@ -1829,7 +1829,7 @@ class BillTransferPrintPDFView(WeasyTemplateView):
     def get_pdf_filename(self):
         # Get the bill transfer and generate the PDF filename dynamically using the transfer_id
         bill = self.get_bill()
-        return f"{bill.bill_id}_Transfer.pdf"
+        return f"{bill.bill_id}_NatHREC.pdf"
 
 
 class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
@@ -1863,4 +1863,4 @@ class BillReceiptPrintPDFView(LoginRequiredMixin, WeasyTemplateView):
     def get_pdf_filename(self):
         # Get the payment and generate the PDF filename dynamically using the payment_id
         rcpt = self.get_payment()
-        return f"{rcpt.bill.bill_id}_Receipt.pdf"
+        return f"{rcpt.bill.bill_id}_Receipt_NatHREC.pdf"

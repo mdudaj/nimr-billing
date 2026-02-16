@@ -41,6 +41,38 @@ from .utils import (
 
 logger = get_task_logger(__name__)
 
+def _enqueue_bill_document_deliveries(*, bill, document_type, event_key, payer_email=None):
+    """Create (idempotent) BillingEmailDelivery rows and enqueue Celery send task."""
+
+    recipients, suppression_reason = select_billing_email_recipients(
+        bill, payer_email=payer_email
+    )
+
+    if not recipients:
+        BillingEmailDelivery.objects.get_or_create(
+            bill=bill,
+            document_type=document_type,
+            recipient_email=(getattr(getattr(bill, "customer", None), "email", "") or "").strip(),
+            event_key=event_key,
+            defaults={
+                "status": "NOT_SENT",
+                "enqueued_at": timezone.now(),
+                "failure_reason": suppression_reason or "no_recipient_email",
+            },
+        )
+        return
+
+    for email in recipients:
+        delivery, created = BillingEmailDelivery.objects.get_or_create(
+            bill=bill,
+            document_type=document_type,
+            recipient_email=email,
+            event_key=event_key,
+            defaults={"status": "PENDING", "enqueued_at": timezone.now()},
+        )
+        if created:
+            send_bill_document_email.delay(delivery.id)
+
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_bill_document_email(self, delivery_id):
@@ -80,7 +112,7 @@ def send_bill_document_email(self, delivery_id):
                 failure_reason="missing_control_number",
             )
             return
-        attachment_name = f"{bill.bill_id}_Invoice.pdf"
+        attachment_name = f"{bill.bill_id}_NatHREC.pdf"
         attachment_bytes = generate_invoice_pdf_bytes(bill)
     elif delivery.document_type == "RECEIPT":
         try:
@@ -91,7 +123,7 @@ def send_bill_document_email(self, delivery_id):
                 failure_reason="missing_payment",
             )
             return
-        attachment_name = f"{bill.bill_id}_Receipt.pdf"
+        attachment_name = f"{bill.bill_id}_Receipt_NatHREC.pdf"
         attachment_bytes = generate_receipt_pdf_bytes(payment)
     else:
         BillingEmailDelivery.objects.filter(id=delivery.id).update(
@@ -317,6 +349,13 @@ def process_bill_control_number_response(
             bill.cntr_num = cust_cntr_num
             bill.save()
 
+            # Auto-send invoice to customer (idempotent by event_key).
+            _enqueue_bill_document_deliveries(
+                bill=bill,
+                document_type="INVOICE",
+                event_key=f"auto:invoice_cn:{cust_cntr_num}",
+            )
+
             # Log the successful response
             # Update the PaymentGatewayLog object with success status and description
             PaymentGatewayLog.objects.filter(req_id=req_id, req_type="1").update(
@@ -492,6 +531,14 @@ def process_bill_payment_response(
         # Log the successful payment response
         logger.info(
             f"Payment response for request ID: {req_id} and Bill ID: {bill_id} processed successfully."
+        )
+
+        # Auto-send receipt (idempotent by event_key).
+        _enqueue_bill_document_deliveries(
+            bill=bill,
+            document_type="RECEIPT",
+            event_key=f"auto:receipt_payref:{payref_id}",
+            payer_email=pyr_email,
         )
 
     except Exception as e:
