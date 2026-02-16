@@ -356,6 +356,31 @@ class CurrencyUpdateView(LoginRequiredMixin, UpdateView):
 class ExchangeRateListView(LoginRequiredMixin, ListView):
     model = ExchangeRate
     template_name = "billing/exchange_rate/exchange_rate_list.html"
+    paginate_by = 25
+    ordering = ["-trx_date", "currency__code"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related("currency")
+
+        search = (self.request.GET.get("search") or "").strip()
+        if search:
+            search_query = models.Q(currency__code__icontains=search) | models.Q(
+                currency__name__icontains=search
+            )
+            try:
+                search_date = date.fromisoformat(search)
+            except ValueError:
+                search_date = None
+            if search_date:
+                search_query |= models.Q(trx_date=search_date)
+            queryset = queryset.filter(search_query)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search"] = self.request.GET.get("search", "")
+        return context
 
 
 class ExchangeRateCreateView(LoginRequiredMixin, CreateView):
@@ -777,7 +802,12 @@ class BillListView(LoginRequiredMixin, ListView):
                 | models.Q(customer__last_name__icontains=search)
             )
             if search.isdigit():
-                search_query |= models.Q(cntr_num=int(search))
+                try:
+                    search_num = int(search)
+                except (ValueError, OverflowError):
+                    search_num = None
+                if search_num is not None and search_num <= 9223372036854775807:
+                    search_query |= models.Q(cntr_num=search_num)
             queryset = queryset.filter(search_query)
 
         return queryset
@@ -1628,10 +1658,14 @@ class BillCancellationListView(LoginRequiredMixin, ListView):
                 | models.Q(bill__customer__email__icontains=search)
             )
             if search.isdigit():
-                search_num = int(search)
-                search_query |= models.Q(bill__cntr_num=search_num) | models.Q(
-                    cust_cntr_num=search_num
-                )
+                try:
+                    search_num = int(search)
+                except (ValueError, OverflowError):
+                    search_num = None
+                if search_num is not None and search_num <= 9223372036854775807:
+                    search_query |= models.Q(bill__cntr_num=search_num) | models.Q(
+                        cust_cntr_num=search_num
+                    )
             queryset = queryset.filter(search_query)
         return queryset
 
@@ -1659,7 +1693,34 @@ class PaymentListView(LoginRequiredMixin, ListView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return super().get_queryset().select_related("bill", "bill__customer")
+        queryset = super().get_queryset().select_related("bill", "bill__customer")
+
+        search = self.request.GET.get("search")
+        if search:
+            search_query = (
+                models.Q(bill__bill_id__icontains=search)
+                | models.Q(payref_id__icontains=search)
+                | models.Q(currency__icontains=search)
+                | models.Q(psp_name__icontains=search)
+                | models.Q(trx_id__icontains=search)
+                | models.Q(trdpty_trx_id__icontains=search)
+                | models.Q(bill__customer__first_name__icontains=search)
+                | models.Q(bill__customer__last_name__icontains=search)
+                | models.Q(bill__customer__tin__icontains=search)
+                | models.Q(bill__customer__email__icontains=search)
+            )
+            if search.isdigit():
+                try:
+                    search_num = int(search)
+                except (ValueError, OverflowError):
+                    search_num = None
+                if search_num is not None and search_num <= 9223372036854775807:
+                    search_query |= models.Q(cust_cntr_num=search_num) | models.Q(
+                        bill__cntr_num=search_num
+                    )
+            queryset = queryset.filter(search_query)
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
