@@ -20,15 +20,117 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--dump",
+            action="store_true",
+            help="Dump current DB reference data as JSON (use --output to write to file)",
+        )
+        parser.add_argument(
             "--path",
             default="billing/fixtures/reference_data.json",
             help="Path to JSON file (default: billing/fixtures/reference_data.json)",
+        )
+        parser.add_argument(
+            "--output",
+            default=None,
+            help="Output path for --dump (default: same as --path). Use '-' for stdout.",
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Show what would be created/updated without saving changes",
         )
+
+    def _dec2(self, value: Decimal) -> str:
+        try:
+            return str(value.quantize(Decimal("0.01")))
+        except Exception:
+            return format(value, "f")
+
+    def _dump_reference_data(self) -> dict:
+        payload = {"service_providers": [], "revenue_sources": []}
+
+        for sp in ServiceProvider.objects.all().order_by("code", "id"):
+            sp_entry = {
+                "code": sp.code,
+                "name": sp.name,
+                "grp_code": sp.grp_code,
+                "sys_code": sp.sys_code,
+                "departments": [],
+            }
+
+            for dept in (
+                BillingDepartment.objects.filter(service_provider=sp)
+                .order_by("code", "name", "id")
+            ):
+                dept_entry = {
+                    "code": dept.code,
+                    "name": dept.name,
+                    "description": dept.description,
+                    "accounts": [],
+                }
+
+                accounts = list(
+                    dept.accounts.select_related("account_currency").order_by(
+                        "bank", "account_currency__code", "account_num", "id"
+                    )
+                )
+                # If no new-style accounts exist, include legacy account fields (if complete).
+                if (
+                    not accounts
+                    and dept.bank
+                    and dept.bank_swift_code
+                    and dept.account_num
+                    and dept.account_currency_id
+                ):
+                    accounts = [
+                        BillingDepartmentAccount(
+                            billing_department=dept,
+                            bank=dept.bank,
+                            bank_swift_code=dept.bank_swift_code,
+                            account_num=dept.account_num,
+                            account_currency=dept.account_currency,
+                        )
+                    ]
+
+                for acct in accounts:
+                    ccy = getattr(acct.account_currency, "code", None)
+                    if not ccy:
+                        continue
+                    dept_entry["accounts"].append(
+                        {
+                            "bank": acct.bank,
+                            "bank_swift_code": acct.bank_swift_code,
+                            "account_num": acct.account_num,
+                            "currency": ccy,
+                        }
+                    )
+
+                sp_entry["departments"].append(dept_entry)
+
+            payload["service_providers"].append(sp_entry)
+
+        for rs in RevenueSource.objects.all().order_by("gfs_code", "name", "id"):
+            rs_entry = {
+                "gfs_code": rs.gfs_code,
+                "name": rs.name,
+                "category": rs.category,
+                "sub_category": rs.sub_category,
+                "items": [],
+            }
+            for item in (
+                RevenueSourceItem.objects.filter(rev_src=rs)
+                .order_by("currency", "description", "id")
+            ):
+                rs_entry["items"].append(
+                    {
+                        "description": item.description,
+                        "amt": self._dec2(item.amt),
+                        "currency": item.currency,
+                    }
+                )
+            payload["revenue_sources"].append(rs_entry)
+
+        return payload
 
     def _get_or_create_currency(self, code: str, *, dry_run: bool) -> Currency:
         code = (code or "").strip().upper()
@@ -315,6 +417,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        if options.get("dump"):
+            out_path = options.get("output") or options.get("path")
+            payload = self._dump_reference_data()
+            rendered = json.dumps(payload, indent=2) + "\n"
+            if out_path == "-":
+                self.stdout.write(rendered)
+            else:
+                Path(out_path).write_text(rendered, encoding="utf-8")
+                self.stdout.write(self.style.SUCCESS(f"Wrote {out_path}"))
+            return
+
         dry_run = options["dry_run"]
         path = Path(options["path"])
 
