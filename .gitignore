@@ -30,3 +30,6 @@ pip-wheel-metadata/
 .ruff_cache/
 
 .env
+
+# Local GePG API PDF used for reference (do not commit)
+docs/*.pdf
