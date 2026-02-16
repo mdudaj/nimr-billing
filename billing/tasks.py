@@ -739,6 +739,19 @@ def process_bill_reconciliation_response(
 ):
     # Process the bill reconciliation response received from the GEPG API
     try:
+        existing_run = ReconciliationRun.objects.filter(req_id=req_id).first()
+        if existing_run and existing_run.status == "CLOSED":
+            PaymentGatewayLog.objects.filter(req_id=req_id, req_type="6").update(
+                status="SUCCESS",
+                status_desc="Reconciliation response received after close; no changes applied.",
+            )
+            logger.warning(
+                "Reconciliation response received after close for req_id=%s res_id=%s",
+                req_id,
+                res_id,
+            )
+            return
+
         run, _ = ReconciliationRun.objects.update_or_create(
             req_id=req_id,
             defaults={
@@ -911,6 +924,9 @@ def create_missing_payments_for_run(run_id: int):
     try:
         run = ReconciliationRun.objects.get(id=run_id)
     except ReconciliationRun.DoesNotExist:
+        return
+
+    if run.status == "CLOSED":
         return
 
     qs = PaymentReconciliation.objects.select_related("bill_ref").filter(
