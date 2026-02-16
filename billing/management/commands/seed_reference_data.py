@@ -162,15 +162,24 @@ class Command(BaseCommand):
             raise CommandError(f"service_providers[{code}].name is required")
 
         obj = ServiceProvider.objects.filter(code=code).first()
+        if obj and obj.grp_code != grp_code:
+            raise CommandError(
+                f"ServiceProvider code={code} exists but grp_code differs "
+                f"(db={obj.grp_code!r}, json={grp_code!r}); refusing to update unique keys"
+            )
+
         if not obj:
             obj = ServiceProvider.objects.filter(grp_code=grp_code).first()
+            if obj and obj.code != code:
+                raise CommandError(
+                    f"ServiceProvider grp_code={grp_code} exists but code differs "
+                    f"(db={obj.code!r}, json={code!r}); refusing to update unique keys"
+                )
 
         if obj:
             changes = []
             for field, new_value in {
                 "name": name,
-                "code": code,
-                "grp_code": grp_code,
                 "sys_code": sys_code or obj.sys_code,
             }.items():
                 if new_value and getattr(obj, field) != new_value:
@@ -208,20 +217,34 @@ class Command(BaseCommand):
         obj = None
         if code:
             obj = BillingDepartment.objects.filter(code=code).first()
+            if obj and obj.name != name:
+                raise CommandError(
+                    f"BillingDepartment code={code} exists but name differs "
+                    f"(db={obj.name!r}, json={name!r}); refusing to update unique keys"
+                )
+
         if not obj:
             obj = BillingDepartment.objects.filter(name=name).first()
+            if obj and code and obj.code and obj.code != code:
+                raise CommandError(
+                    f"BillingDepartment name={name!r} exists but code differs "
+                    f"(db={obj.code!r}, json={code!r}); refusing to update unique keys"
+                )
 
         if obj:
             changes = []
-            for field, new_value in {
-                "service_provider": sp,
-                "name": name,
-                "code": code,
-                "description": description,
-            }.items():
-                if getattr(obj, field) != new_value:
-                    setattr(obj, field, new_value)
-                    changes.append(field)
+            if obj.service_provider_id != sp.id:
+                obj.service_provider = sp
+                changes.append("service_provider")
+
+            if description != obj.description:
+                obj.description = description
+                changes.append("description")
+
+            # Safe backfill: allow setting code only when currently NULL.
+            if code and obj.code is None and code != obj.code:
+                obj.code = code
+                changes.append("code")
 
             if changes:
                 if dry_run:
