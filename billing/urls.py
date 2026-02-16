@@ -24,6 +24,7 @@ from .views import (
     CustomerListView,
     CustomerUpdateView,
     ExchangeRateListView,
+    FinancialReportView,
     PaymentDetailView,
     PaymentListView,
     RevenueSourceCreateView,
@@ -52,6 +53,11 @@ app_name = "billing"
 
 urlpatterns = [
     path("", BillingIndexView.as_view(), name="billing-index"),
+    path(
+        "reports/financial/",
+        FinancialReportView.as_view(),
+        name="financial-report",
+    ),
     path(
         "system-info/",
         SystemInfoListView.as_view(),

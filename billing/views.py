@@ -1,6 +1,7 @@
 import functools
 import logging
 import ssl
+from datetime import date
 
 import requests
 from django.conf import settings
@@ -26,6 +27,7 @@ from django.views.generic import (
     View,
 )
 from django_weasyprint.views import WeasyTemplateView
+from django.db.models import Count, Sum
 
 from .forms import (
     BillCancellationForm,
@@ -33,6 +35,7 @@ from .forms import (
     BillItemInlineFormSet,
     CustomerForm,
     PaymentReconciliationForm,
+    FinancialReportFilterForm,
     RevenueSourceForm,
     RevenueSourceItemInlineFormSet,
     ServiceProviderBillingDepartmentInlineFormSet,
@@ -89,6 +92,134 @@ logger = logging.getLogger(__name__)
 
 class BillingIndexView(LoginRequiredMixin, TemplateView):
     template_name = "billing/index.html"
+
+
+class FinancialReportView(LoginRequiredMixin, TemplateView):
+    template_name = "billing/reports/financial_report.html"
+
+    def _period_range(self, form: FinancialReportFilterForm):
+        period = form.cleaned_data["period"]
+
+        if period == FinancialReportFilterForm.PERIOD_DATE_RANGE:
+            return (
+                form.cleaned_data["start_date"],
+                form.cleaned_data["end_date"],
+                "Custom Range",
+            )
+
+        fiscal_year = int(form.cleaned_data["fiscal_year"])
+        fy_start = date(fiscal_year, 7, 1)
+        fy_end = date(fiscal_year + 1, 6, 30)
+
+        if period == FinancialReportFilterForm.PERIOD_FISCAL_YEAR:
+            return fy_start, fy_end, f"FY {fiscal_year}/{fiscal_year + 1}"
+
+        quarter = int(form.cleaned_data["quarter"])
+        if quarter == 1:
+            return date(fiscal_year, 7, 1), date(fiscal_year, 9, 30), f"FY{fiscal_year} Q1"
+        if quarter == 2:
+            return date(fiscal_year, 10, 1), date(fiscal_year, 12, 31), f"FY{fiscal_year} Q2"
+        if quarter == 3:
+            return date(fiscal_year + 1, 1, 1), date(fiscal_year + 1, 3, 31), f"FY{fiscal_year} Q3"
+        return date(fiscal_year + 1, 4, 1), date(fiscal_year + 1, 6, 30), f"FY{fiscal_year} Q4"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = FinancialReportFilterForm(self.request.GET or None)
+        context["filter_form"] = form
+
+        if not form.is_valid():
+            # Render the page with validation errors.
+            return context
+
+        start_date, end_date, period_label = self._period_range(form)
+        basis = form.cleaned_data["basis"]
+        currency = (form.cleaned_data.get("currency") or "").strip()
+
+        context["period_start"] = start_date
+        context["period_end"] = end_date
+        context["period_label"] = period_label
+        context["basis"] = basis
+        context["currency"] = currency
+
+        if basis == FinancialReportFilterForm.BASIS_COLLECTIONS:
+            payments = Payment.objects.select_related("bill").filter(
+                trx_date__date__gte=start_date,
+                trx_date__date__lte=end_date,
+            )
+            if currency:
+                payments = payments.filter(currency=currency)
+
+            context["totals_by_currency"] = list(
+                payments.values("currency").annotate(
+                    payments_count=Count("bill_id"),
+                    total_paid=Sum("paid_amt"),
+                )
+            )
+            context["totals_by_collection_account"] = list(
+                payments.values("currency", "coll_acc_num").annotate(
+                    payments_count=Count("bill_id"),
+                    total_paid=Sum("paid_amt"),
+                ).order_by("currency", "coll_acc_num")
+            )
+
+            # Approximate MoFP-style stream totals by summing bill items for bills that were paid in the period.
+            bill_items = BillItem.objects.select_related(
+                "rev_src_itm",
+                "rev_src_itm__rev_src",
+                "bill",
+            ).filter(
+                bill__payment__trx_date__date__gte=start_date,
+                bill__payment__trx_date__date__lte=end_date,
+            )
+            if currency:
+                bill_items = bill_items.filter(bill__currency=currency)
+            context["totals_by_revenue_stream"] = list(
+                bill_items.values(
+                    "bill__currency",
+                    "rev_src_itm__rev_src__gfs_code",
+                    "rev_src_itm__rev_src__name",
+                )
+                .annotate(total_amount=Sum("amt"), bills_count=Count("bill_id", distinct=True))
+                .order_by("bill__currency", "rev_src_itm__rev_src__gfs_code")
+            )
+
+        else:
+            bills = Bill.objects.filter(
+                gen_date__date__gte=start_date,
+                gen_date__date__lte=end_date,
+            )
+            if currency:
+                bills = bills.filter(currency=currency)
+
+            context["totals_by_currency"] = list(
+                bills.values("currency").annotate(
+                    bills_count=Count("id"),
+                    total_billed=Sum("amt"),
+                )
+            )
+
+            bill_items = BillItem.objects.select_related(
+                "rev_src_itm",
+                "rev_src_itm__rev_src",
+                "bill",
+            ).filter(
+                bill__gen_date__date__gte=start_date,
+                bill__gen_date__date__lte=end_date,
+            )
+            if currency:
+                bill_items = bill_items.filter(bill__currency=currency)
+            context["totals_by_revenue_stream"] = list(
+                bill_items.values(
+                    "bill__currency",
+                    "rev_src_itm__rev_src__gfs_code",
+                    "rev_src_itm__rev_src__name",
+                )
+                .annotate(total_amount=Sum("amt"), bills_count=Count("bill_id", distinct=True))
+                .order_by("bill__currency", "rev_src_itm__rev_src__gfs_code")
+            )
+
+        return context
 
 
 class CurrencyListView(LoginRequiredMixin, ListView):
