@@ -34,6 +34,7 @@ from .forms import (
     BillCancellationForm,
     BillForm,
     BillItemInlineFormSet,
+    CancelledBillForm,
     CustomerForm,
     PaymentReconciliationForm,
     FinancialReportFilterForm,
@@ -1344,7 +1345,7 @@ class BillControlNumberReconciliationCallbackView(View):
 
 class BillCancellationCreateView(LoginRequiredMixin, CreateView):
     model = CancelledBill
-    fields = ["bill", "reason"]
+    form_class = CancelledBillForm
     template_name = "billing/bill_cancellation/bill_cancellation_form.html"
     success_url = reverse_lazy("billing:bill-list")
 
@@ -1355,10 +1356,6 @@ class BillCancellationCreateView(LoginRequiredMixin, CreateView):
 
     @transaction.atomic
     def form_valid(self, form):
-        print(
-            f"User: {self.request.user} | Authenticated: {self.request.user.is_authenticated}"
-        )
-
         context = self.get_context_data()
         cancl_bill_obj = form.save(commit=False)
         cancl_bill_obj.cust_cntr_num = cancl_bill_obj.bill.cntr_num
@@ -1495,7 +1492,7 @@ class BillCancellationCreateView(LoginRequiredMixin, CreateView):
 
 class BillCancellationUpdateView(LoginRequiredMixin, UpdateView):
     model = CancelledBill
-    fields = ["bill", "reason"]
+    form_class = CancelledBillForm
     template_name = "billing/bill_cancellation/bill_cancellation_form.html"
     success_url = reverse_lazy("billing:bill-list")
 
@@ -1731,6 +1728,51 @@ class PaymentListView(LoginRequiredMixin, ListView):
 class PaymentDetailView(LoginRequiredMixin, DetailView):
     model = Payment
     template_name = "billing/payment/payment_detail.html"
+
+
+class BillSearchView(LoginRequiredMixin, View):
+    """AJAX endpoint for Select2 bill search (used by cancel bill form)."""
+
+    def get(self, request):
+        q = (request.GET.get("q") or request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+        per_page = 20
+
+        bills = (
+            Bill.objects.select_related("customer")
+            .filter(cntr_num__isnull=False, cancelledbill__isnull=True)
+            .order_by("-created_at")
+        )
+        if q:
+            search_query = (
+                models.Q(bill_id__icontains=q)
+                | models.Q(description__icontains=q)
+                | models.Q(customer__first_name__icontains=q)
+                | models.Q(customer__last_name__icontains=q)
+                | models.Q(customer__tin__icontains=q)
+                | models.Q(customer__email__icontains=q)
+            )
+            if q.isdigit():
+                search_query |= models.Q(cntr_num=int(q))
+            bills = bills.filter(search_query)
+
+        paginator = Paginator(bills, per_page)
+        page_obj = paginator.get_page(page)
+
+        results = []
+        for b in page_obj.object_list:
+            customer = getattr(b, "customer", None)
+            cust_name = customer.get_name() if customer else "-"
+            results.append(
+                {
+                    "id": b.pk,
+                    "text": f"{b.bill_id} | {cust_name} | {b.currency} {b.amt} | CN {b.cntr_num}",
+                }
+            )
+
+        return JsonResponse(
+            {"results": results, "pagination": {"more": page_obj.has_next()}}
+        )
 
 
 def check_control_number_request_status(request, pk):

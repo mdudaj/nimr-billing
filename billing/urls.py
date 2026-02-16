@@ -27,6 +27,7 @@ from .views import (
     FinancialReportView,
     PaymentDetailView,
     PaymentListView,
+    BillSearchView,
     RevenueSourceCreateView,
     RevenueSourceDeleteView,
     RevenueSourceDetailView,
@@ -196,6 +197,7 @@ urlpatterns = [
     ),
     path("payment/", PaymentListView.as_view(), name="payment-list"),
     path("payment/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail"),
+    path("bill/search/", BillSearchView.as_view(), name="bill-search"),
     path(
         "check-control-number-request-status/<int:pk>/",
         check_control_number_request_status,
