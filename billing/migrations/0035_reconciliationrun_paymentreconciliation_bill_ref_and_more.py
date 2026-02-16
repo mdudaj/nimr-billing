@@ -4,6 +4,32 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def dedupe_paymentreconciliation_payref_id(apps, schema_editor):
+    """
+    Ensure PaymentReconciliation.payref_id is unique before adding the constraint.
+
+    Existing databases may contain duplicate reconciliation rows (e.g., callback retries).
+    We keep the lowest id per payref_id and delete the rest.
+    """
+
+    PaymentReconciliation = apps.get_model("billing", "PaymentReconciliation")
+    db_alias = schema_editor.connection.alias
+
+    from django.db.models import Count, Min
+
+    dupes = (
+        PaymentReconciliation.objects.using(db_alias)
+        .values("payref_id")
+        .annotate(c=Count("id"), min_id=Min("id"))
+        .filter(c__gt=1)
+    )
+
+    for row in dupes.iterator():
+        PaymentReconciliation.objects.using(db_alias).filter(
+            payref_id=row["payref_id"]
+        ).exclude(id=row["min_id"]).delete()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -60,6 +86,7 @@ class Migration(migrations.Migration):
             name='payment',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reconciliation_transactions', to='billing.payment'),
         ),
+        migrations.RunPython(dedupe_paymentreconciliation_payref_id, migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name='paymentreconciliation',
             constraint=models.UniqueConstraint(fields=('payref_id',), name='uniq_recon_payref_id'),
