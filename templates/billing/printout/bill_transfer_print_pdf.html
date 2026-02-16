@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="{% static 'css/bill_transfer.css' %}">
 </head>
 <body>
+    {% if accounts %}
+    {% for account in accounts %}
+    <div class="invoice-page">
     <div class="header centered">
         <img src="file://{{ image_path }}" alt="Government Logo" class="gov-logo">
         <h5>United Republic Of Tanzania</h5>
@@ -76,17 +79,17 @@
                     <tr>
                         <td></td>
                         <td>:</td>
-                        <td>CRDB BANK PLC</td>
+                        <td>{{ account.get_bank_display }}</td>
                     </tr>
                     <tr>
                         <td>Account Number</td>
                         <td>:</td>
-                        <td><strong>{{ bill.dept.account_num }}</strong></td>
+                        <td><strong>{{ account.account_num }}</strong></td>
                     </tr>
                     <tr>
                         <td>SWIFT Code</td>
                         <td>:</td>
-                        <td><strong>CORUTZTZ</strong></td>
+                        <td><strong>{{ account.bank_swift_code }}</strong></td>
                     </tr>
                     <tr>
                         <td>Control Number</td>
@@ -96,7 +99,7 @@
                     <tr>
                         <td>Beneficiary Account (Field 59 of MT103)</td>
                         <td>:</td>
-                        <td><strong>/{{ bill.dept.account_num }}</strong></td>
+                        <td><strong>/{{ account.account_num }}</strong></td>
                     </tr>
                     <tr>
                         <td>Payment Reference (Field 70 of MT103)</td>
@@ -192,6 +195,159 @@
                 <li>Field 70 of MT103 is a "Control Number" with value: <strong>/ROC/{{ bill.cntr_num }}</strong>. Must be captured correctly.</li>
             </ol>
         </div>
+        </div>
     </div>
+    {% if not forloop.last %}
+    <div style="page-break-after: always;"></div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <div class="header centered">
+        <img src="file://{{ image_path }}" alt="Government Logo" class="gov-logo">
+        <h5>United Republic Of Tanzania</h5>
+        <h4>National Institute for Medical Research</h4>
+        <h3>Order Form for Electronic Funds Transfer to BANK OF TANZANIA</h3>
+    </div>
+
+    <hr class="bold-line">
+
+    <div class="transfer-details">
+        <table class="taxpayer-details-table">
+            <thead>
+                <tr>
+                    <th colspan="3"><strong>(a). Remitter / Tax Payer Details:</strong></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Name of Account Holder(s)</td>
+                    <td>:</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+                <tr>
+                    <td>Name of Commercial Bank</td>
+                    <td>:</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+                <tr>
+                    <td>Bank Account Number</td>
+                    <td>:</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="signatories-table">
+            <tbody>
+                <tr>
+                    <td>Signatories</td>
+                    <td><hr class="dashed-line"></td>
+                    <td>|</td>
+                    <td><hr class="dashed-line"></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>1<sup>st</sup> Signatory</td>
+                    <td></td>
+                    <td>2<sup>nd</sup> Signatory</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr class="bold-line">
+
+        <div class="beneficiary-details">
+            <table class="beneficiary-details-table">
+                <thead>
+                    <tr>
+                        <th><strong>(b). Beneficiary Details</strong></th>
+                        <th>:</th>
+                        <th>National Institute for Medical Research (NIMR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td></td>
+                        <td>:</td>
+                        <td>{{ bill.dept.get_bank_display }}</td>
+                    </tr>
+                    <tr>
+                        <td>Account Number</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.dept.account_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>SWIFT Code</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.dept.bank_swift_code }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Control Number</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.cntr_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Beneficiary Account (Field 59 of MT103)</td>
+                        <td>:</td>
+                        <td><strong>/{{ bill.dept.account_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Payment Reference (Field 70 of MT103)</td>
+                        <td>:</td>
+                        <td><strong>/ROC/{{ bill.cntr_num }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Transfer Amount</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.amt }} ({{ bill.currency }})</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Amount in Words</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.amount_in_words }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Being payment for</td>
+                        <td>:</td>
+                        <td><strong>{{ bill.customer.get_name }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="qrcode-container">
+                <img src="file://{{ qr_code_path }}" alt="QR Code" class="qrcode">
+                <p>SCAN & PAY</p>
+            </div>
+        </div>
+
+        <hr class="bold-line">
+
+        <div class="billed-items">
+            <table class="billed-items-table">
+                <thead>
+                    <tr>
+                        <th colspan="3"><strong>Billed Item ({{ bill.billed_items.count }}):</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if bill.billed_items.count == 1 %}
+                        <tr>
+                            <td><strong>{{ bill.billed_items.first.description }}</strong></td>
+                            <td>:</td>
+                            <td><strong>{{ bill.billed_items.first.amt }} ({{ bill.currency }})</strong></td>
+                        </tr>
+                    {% else %}
+                        {% for item in bill.billed_items %}
+                        <tr>
+                            <td><strong>{{ item.description }}</strong></td>
+                            <td>:</td>
+                            <td><strong>{{ item.amt }} ({{ bill.currency }})</strong></td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 </body>
 </html>

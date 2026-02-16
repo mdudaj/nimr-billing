@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import pkcs12
 from django.conf import settings
+from django.contrib.staticfiles import finders
 from django.template.loader import get_template
 from django.utils import timezone
 from django_weasyprint.utils import django_url_fetcher
@@ -22,6 +23,38 @@ from PIL import Image
 from weasyprint import HTML
 
 logger = logging.getLogger(__name__)
+
+
+def _static_file_path(relative_path: str) -> str:
+    """
+    Return an absolute filesystem path for a static file.
+
+    In dev/docker setups, STATIC_ROOT may not be populated (collectstatic not run),
+    so prefer staticfiles finders (STATICFILES_DIRS) and fall back to STATIC_ROOT.
+    """
+
+    found = finders.find(relative_path)
+    if found and os.path.exists(found):
+        return found
+
+    # Common dev/docker fallback: static files live under BASE_DIR/static without collectstatic.
+    base_dir = str(getattr(settings, "BASE_DIR", ""))
+    if base_dir:
+        candidate = os.path.join(base_dir, "static", relative_path)
+        if os.path.exists(candidate):
+            return candidate
+
+    # Production fallback: collectstatic outputs to STATIC_ROOT.
+    static_root = getattr(settings, "STATIC_ROOT", "") or ""
+    if static_root:
+        candidate = os.path.join(static_root, relative_path)
+        if os.path.exists(candidate):
+            return candidate
+
+    # Last resort: defer to the configured storage path (may raise a useful error).
+    from django.contrib.staticfiles.storage import staticfiles_storage
+
+    return staticfiles_storage.path(relative_path)
 
 
 def clean_data(value):
@@ -105,7 +138,7 @@ def generate_pdf(bill_obj, template_name, base_url):
     # Get the template for the bill
     template = get_template(f"billing/bill/{template_name}")
 
-    logo = settings.STATIC_ROOT + "/img/coat-of-arms-of-tanzania.png"
+    logo = _static_file_path("img/coat-of-arms-of-tanzania.png")
 
     # Render the template with the bill object
     html = template.render({"bill": bill_obj, "logo": logo})
@@ -169,7 +202,33 @@ def generate_invoice_pdf_bytes(bill):
 
     from django.contrib.staticfiles.storage import staticfiles_storage
 
-    logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+    # Prefer explicit collection accounts; fallback to the legacy single-account fields on BillingDepartment.
+    accounts = list(
+        bill.dept.accounts.select_related("account_currency")
+        .filter(account_currency__code=bill.currency)
+        .order_by("bank", "account_num")
+    )
+    if not accounts and getattr(bill.dept, "account_num", None):
+        # Only include legacy account when it matches the bill currency (or has no currency set).
+        if (
+            bill.dept.account_currency is None
+            or getattr(bill.dept.account_currency, "code", None) == bill.currency
+        ):
+            accounts = [
+                type(
+                    "LegacyDeptAccount",
+                    (),
+                    {
+                        "bank": bill.dept.bank,
+                        "bank_swift_code": bill.dept.bank_swift_code,
+                        "account_num": bill.dept.account_num,
+                        "account_currency": bill.dept.account_currency,
+                        "get_bank_display": bill.dept.get_bank_display,
+                    },
+                )()
+            ]
+
+    logo_path = _static_file_path("img/coat-of-arms-of-tanzania.png")
     qr_code_path = generate_qr_code(
         {
             "opType": "2",
@@ -190,14 +249,15 @@ def generate_invoice_pdf_bytes(bill):
             "image_path": logo_path,
             "qr_code_path": qr_code_path,
             "bill": bill,
+            "accounts": accounts,
             "print_date": timezone.now().strftime("%d-%m-%Y"),
         }
     )
 
-    stylesheets = [settings.STATIC_ROOT + "/css/bill_transfer_print.css"]
+    stylesheets = [_static_file_path("css/bill_transfer_print.css")]
     return HTML(
         string=html,
-        base_url=settings.STATIC_ROOT,
+        base_url=str(settings.BASE_DIR),
         url_fetcher=custom_url_fetcher,
     ).write_pdf(stylesheets=stylesheets)
 
@@ -207,7 +267,7 @@ def generate_receipt_pdf_bytes(payment):
 
     from django.contrib.staticfiles.storage import staticfiles_storage
 
-    logo_path = staticfiles_storage.path("img/coat-of-arms-of-tanzania.png")
+    logo_path = _static_file_path("img/coat-of-arms-of-tanzania.png")
     template = get_template("billing/printout/bill_receipt_print_pdf.html")
     html = template.render(
         {
@@ -216,10 +276,10 @@ def generate_receipt_pdf_bytes(payment):
         }
     )
 
-    stylesheets = [settings.STATIC_ROOT + "/css/bill_receipt_print.css"]
+    stylesheets = [_static_file_path("css/bill_receipt_print.css")]
     return HTML(
         string=html,
-        base_url=settings.STATIC_ROOT,
+        base_url=str(settings.BASE_DIR),
         url_fetcher=custom_url_fetcher,
     ).write_pdf(stylesheets=stylesheets)
 

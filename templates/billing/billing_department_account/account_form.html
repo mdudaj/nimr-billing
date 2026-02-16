@@ -1,0 +1,34 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Collection Account {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">{% if form.instance.pk %}Update{% else %}Create{% endif %} Collection Account</h1>
+    </div>
+
+    <form class="ui form" method="post">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <div class="ui pointing red basic label">{{ field.errors|join:", " }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <button class="ui primary button" type="submit">Save</button>
+        {% if form.instance.billing_department_id %}
+        <a class="ui button" href="{% url 'billing:dept-account-list' form.instance.billing_department_id %}">Cancel</a>
+        {% else %}
+        <a class="ui button" href="{% url 'billing:sp-list' %}">Cancel</a>
+        {% endif %}
+    </form>
+</div>
+{% endblock content %}
+

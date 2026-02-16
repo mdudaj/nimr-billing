@@ -7,7 +7,7 @@
 <div class="row">
     <div class="sixteen wide column">
         <div class="ui clearing basic segment">
-            <h1 class="ui left floated header">{{ sp.name }}</h1>
+            <h1 class="ui left floated header">{{ serviceprovider.name }}</h1>
             <a href="{% url 'billing:sp-list' %}" class="ui right floated vertical animated primary button"
                 tabindex="0">
                 <div class="visible content">Back to Service Provider List</div>
@@ -18,21 +18,24 @@
         </div>
         <div class="ui segments">
             <div class="ui segment">
-                <h2 class="ui header">{{ sserviceprovider.name }}</h2>
+                <h2 class="ui header">{{ serviceprovider.name }}</h2>
                 <p><strong>Service Provider Code:</strong> {{ serviceprovider.code }}</p>
                 <p><strong>Service Provider Group Code:</strong> {{ serviceprovider.grp_code }}</p>
             </div>
             <div class="ui segment">
                 <h2 class="ui header">Departments</h2>
                 <div class="ui very relaxed divided list">
-                    {% for department in serviceprovider.billingdepartment_set.all %}
-                    <div class="item">
-                        {{ department.name }}
-                        <div class="ui horizontal left pointing large label">
-                            {{ department.code }}
-                        </div>
-                    </div>
-                    {% empty %}
+                     {% for department in serviceprovider.billingdepartment_set.all %}
+                     <div class="item">
+                         {{ department.name }}
+                         <div class="ui horizontal left pointing large label">
+                             {{ department.code }}
+                         </div>
+                         <a class="ui tiny button" href="{% url 'billing:dept-account-list' department.pk %}">
+                             Accounts ({{ department.accounts.count }})
+                         </a>
+                     </div>
+                     {% empty %}
                     <div class="item">No departments found</div>
                     {% endfor %}
                 </div>

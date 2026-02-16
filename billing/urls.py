@@ -36,6 +36,10 @@ from .views import (
     ServiceProviderDetailView,
     ServiceProviderListView,
     ServiceProviderUpdateView,
+    BillingDepartmentAccountListView,
+    BillingDepartmentAccountCreateView,
+    BillingDepartmentAccountUpdateView,
+    BillingDepartmentAccountDeleteView,
     SystemInfoCreateView,
     SystemInfoDeleteView,
     SystemInfoDetailView,
@@ -111,6 +115,26 @@ urlpatterns = [
         "service-provider/<int:pk>/delete/",
         ServiceProviderDeleteView.as_view(),
         name="sp-delete",
+    ),
+    path(
+        "billing-department/<int:dept_pk>/accounts/",
+        BillingDepartmentAccountListView.as_view(),
+        name="dept-account-list",
+    ),
+    path(
+        "billing-department/<int:dept_pk>/accounts/create/",
+        BillingDepartmentAccountCreateView.as_view(),
+        name="dept-account-create",
+    ),
+    path(
+        "billing-department/accounts/<int:pk>/update/",
+        BillingDepartmentAccountUpdateView.as_view(),
+        name="dept-account-update",
+    ),
+    path(
+        "billing-department/accounts/<int:pk>/delete/",
+        BillingDepartmentAccountDeleteView.as_view(),
+        name="dept-account-delete",
     ),
     path("revenue-source/", RevenueSourceListView.as_view(), name="rs-list"),
     path(

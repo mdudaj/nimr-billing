@@ -223,12 +223,22 @@ class BillingDepartment(TimeStampedModel, models.Model):
         null=True,
         verbose_name=_("Collection Center Code"),
     )
+    # Legacy single-account fields (kept for backward compatibility).
+    # New implementations should prefer BillingDepartmentAccount records.
     bank = models.CharField(
-        max_length=10, choices=Bank_Choices, verbose_name=_("Bank Name")
+        max_length=10,
+        choices=Bank_Choices,
+        blank=True,
+        null=True,
+        verbose_name=_("Bank Name"),
     )
-    bank_swift_code = models.CharField(max_length=20, verbose_name=_("Bank Swift Code"))
+    bank_swift_code = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name=_("Bank Swift Code")
+    )
     account_num = models.CharField(
         max_length=50,
+        blank=True,
+        null=True,
         verbose_name=_("Credit Collection Account Number"),
     )
     account_currency = models.ForeignKey(
@@ -254,6 +264,49 @@ class BillingDepartment(TimeStampedModel, models.Model):
             return dept
         except cls.DoesNotExist:
             return None
+
+
+class BillingDepartmentAccount(TimeStampedModel, models.Model):
+    """Collection account for a BillingDepartment (bank + currency specific)."""
+
+    BANK_CHOICES = BillingDepartment.Bank_Choices
+
+    billing_department = models.ForeignKey(
+        BillingDepartment,
+        on_delete=models.CASCADE,
+        related_name="accounts",
+        verbose_name=_("Collection Center"),
+    )
+    bank = models.CharField(
+        max_length=10, choices=BANK_CHOICES, verbose_name=_("Bank Name")
+    )
+    bank_swift_code = models.CharField(max_length=20, verbose_name=_("Bank Swift Code"))
+    account_num = models.CharField(
+        max_length=50,
+        verbose_name=_("Credit Collection Account Number"),
+    )
+    account_currency = models.ForeignKey(
+        Currency,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("Account Currency"),
+    )
+
+    class Meta:
+        verbose_name = _("Billing Department Account")
+        verbose_name_plural = _("Billing Department Accounts")
+        ordering = ["billing_department", "bank", "account_currency_id", "account_num"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["billing_department", "bank", "account_currency", "account_num"],
+                name="uniq_dept_bank_currency_account",
+            )
+        ]
+
+    def __str__(self):
+        ccy = getattr(self.account_currency, "code", None) or "-"
+        return f"{self.billing_department.name} - {self.get_bank_display()} - {ccy}"
 
 
 class RevenueSource(TimeStampedModel, models.Model):

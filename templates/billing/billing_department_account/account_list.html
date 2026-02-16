@@ -1,0 +1,61 @@
+{% extends 'semantic-ui/layouts/base.html' %}
+{% load static %}
+
+{% block title %} Collection Accounts {% endblock title %}
+
+{% block content %}
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Collection Accounts</h1>
+        <a href="{% url 'billing:dept-account-create' department.pk %}" class="ui right floated primary button">
+            <i class="plus icon"></i>
+            Add Account
+        </a>
+    </div>
+
+    <div class="ui segment">
+        <h4 class="ui header">Collection Center: {{ department.name }}</h4>
+        <p><strong>Service Provider:</strong> {{ department.service_provider.name }}</p>
+    </div>
+
+    <table class="ui basic striped table">
+        <thead>
+            <tr>
+                <th>Bank</th>
+                <th>Currency</th>
+                <th>Account Number</th>
+                <th>SWIFT</th>
+                <th class="right aligned">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in accounts %}
+            <tr>
+                <td>{{ account.get_bank_display }}</td>
+                <td>{{ account.account_currency.code|default:"-" }}</td>
+                <td>{{ account.account_num }}</td>
+                <td>{{ account.bank_swift_code }}</td>
+                <td class="right aligned">
+                    <a href="{% url 'billing:dept-account-update' account.pk %}" class="ui icon button">
+                        <i class="edit icon"></i>
+                    </a>
+                    <a href="{% url 'billing:dept-account-delete' account.pk %}" class="ui icon negative button">
+                        <i class="trash icon"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="center aligned">No accounts configured.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{% url 'billing:sp-detail' department.service_provider.pk %}" class="ui button">
+        <i class="arrow left icon"></i>
+        Back to Service Provider
+    </a>
+</div>
+{% endblock content %}
+

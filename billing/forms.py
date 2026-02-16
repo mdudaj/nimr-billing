@@ -12,6 +12,7 @@ from .models import (
     RevenueSourceItem,
     ServiceProvider,
     SystemInfo,
+    BillingDepartmentAccount,
 )
 
 
@@ -45,6 +46,18 @@ class BillingDepartmentForm(forms.ModelForm):
         fields = "__all__"
 
 
+class ServiceProviderBillingDepartmentInlineForm(forms.ModelForm):
+    class Meta:
+        model = BillingDepartment
+        fields = ("name", "code", "description")
+
+
+class BillingDepartmentAccountForm(forms.ModelForm):
+    class Meta:
+        model = BillingDepartmentAccount
+        fields = "__all__"
+
+
 class BaseServiceProviderBillingDepartmentInlineFormSet(forms.BaseInlineFormSet):
     def clean(self):
         super(BaseServiceProviderBillingDepartmentInlineFormSet, self).clean()
@@ -60,7 +73,7 @@ class BaseServiceProviderBillingDepartmentInlineFormSet(forms.BaseInlineFormSet)
 ServiceProviderBillingDepartmentInlineFormSet = forms.inlineformset_factory(
     ServiceProvider,
     BillingDepartment,
-    form=ServiceProviderForm,
+    form=ServiceProviderBillingDepartmentInlineForm,
     formset=BaseServiceProviderBillingDepartmentInlineFormSet,
     extra=1,
 )

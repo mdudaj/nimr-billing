@@ -8,6 +8,13 @@
     <div class="ui segment" data-formset-body>
         {% for form in billing_departments %}
         {% include 'semantic-ui/includes/inline_form.html' with form=form %}
+        {% if form.instance.pk %}
+        <div class="ui basic segment">
+            <a class="ui tiny button" href="{% url 'billing:dept-account-list' form.instance.pk %}">
+                Manage Accounts ({{ form.instance.accounts.count }})
+            </a>
+        </div>
+        {% endif %}
         {% endfor %}
         {% include 'semantic-ui/includes/inline_empty_form.html' with form=billing_departments.empty_form %}
     </div>
