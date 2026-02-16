@@ -802,7 +802,12 @@ class BillListView(LoginRequiredMixin, ListView):
                 | models.Q(customer__last_name__icontains=search)
             )
             if search.isdigit():
-                search_query |= models.Q(cntr_num=int(search))
+                try:
+                    search_num = int(search)
+                except (ValueError, OverflowError):
+                    search_num = None
+                if search_num is not None and search_num <= 9223372036854775807:
+                    search_query |= models.Q(cntr_num=search_num)
             queryset = queryset.filter(search_query)
 
         return queryset
@@ -1653,10 +1658,14 @@ class BillCancellationListView(LoginRequiredMixin, ListView):
                 | models.Q(bill__customer__email__icontains=search)
             )
             if search.isdigit():
-                search_num = int(search)
-                search_query |= models.Q(bill__cntr_num=search_num) | models.Q(
-                    cust_cntr_num=search_num
-                )
+                try:
+                    search_num = int(search)
+                except (ValueError, OverflowError):
+                    search_num = None
+                if search_num is not None and search_num <= 9223372036854775807:
+                    search_query |= models.Q(bill__cntr_num=search_num) | models.Q(
+                        cust_cntr_num=search_num
+                    )
             queryset = queryset.filter(search_query)
         return queryset
 
@@ -1701,10 +1710,14 @@ class PaymentListView(LoginRequiredMixin, ListView):
                 | models.Q(bill__customer__email__icontains=search)
             )
             if search.isdigit():
-                search_num = int(search)
-                search_query |= models.Q(cust_cntr_num=search_num) | models.Q(
-                    bill__cntr_num=search_num
-                )
+                try:
+                    search_num = int(search)
+                except (ValueError, OverflowError):
+                    search_num = None
+                if search_num is not None and search_num <= 9223372036854775807:
+                    search_query |= models.Q(cust_cntr_num=search_num) | models.Q(
+                        bill__cntr_num=search_num
+                    )
             queryset = queryset.filter(search_query)
 
         return queryset
