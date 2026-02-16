@@ -1,13 +1,13 @@
 {
   "service_providers": [
     {
-      "code": "SP19917",
+      "code": "SP99591",
       "name": "National Institute for Medical Research",
-      "grp_code": "SP19917",
-      "sys_code": "TNIMR002",
+      "grp_code": "SP99591",
+      "sys_code": "LNHRMIS001",
       "departments": [
         {
-          "code": "CC1003029398740",
+          "code": "CC1000000199591",
           "name": "NIMR HQ",
           "description": "National Institute for Medical Research, Headquarters",
           "accounts": [
@@ -20,7 +20,31 @@
             {
               "bank": "CRDB",
               "bank_swift_code": "CORUTZTZ",
-              "account_num": "0150433049200",
+              "account_num": "0250433049200",
+              "currency": "USD"
+            },
+            {
+              "bank": "NBC",
+              "bank_swift_code": "NLCBTZTX",
+              "account_num": "012139000103",
+              "currency": "TZS"
+            },
+            {
+              "bank": "NBC",
+              "bank_swift_code": "NLCBTZTX",
+              "account_num": "012105028943",
+              "currency": "USD"
+            },
+            {
+              "bank": "NMB",
+              "bank_swift_code": "NMIBTZTZ",
+              "account_num": "20110040490",
+              "currency": "TZS"
+            },
+            {
+              "bank": "NMB",
+              "bank_swift_code": "NMIBTZTZ",
+              "account_num": "20110040491",
               "currency": "USD"
             }
           ]
@@ -30,23 +54,238 @@
   ],
   "revenue_sources": [
     {
-      "gfs_code": "140101",
+      "gfs_code": "142101360013",
+      "name": "Receipts from Conference Facilities",
+      "category": "Research and Development",
+      "sub_category": "Conference Facilities",
+      "items": [
+        {
+          "description": "Exhibition Fee",
+          "amt": "1000000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Symposium Fee",
+          "amt": "6000000.00",
+          "currency": "TZS"
+        }
+      ]
+    },
+    {
+      "gfs_code": "142201410033",
+      "name": "Receipts From Registration Fees",
+      "category": "Research and Development",
+      "sub_category": "Registration Fees",
+      "items": [
+        {
+          "description": "Registration Fee - Local Participants",
+          "amt": "150000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Registration Fee - Local Students",
+          "amt": "50000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Registration Fee - Foreign Participants",
+          "amt": "150.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Registration Fee - Foreign Students",
+          "amt": "50.00",
+          "currency": "USD"
+        }
+      ]
+    },
+    {
+      "gfs_code": "142201700026",
       "name": "Ethical clearance fee",
       "category": "Intellectual Property Products",
       "sub_category": "Research and Development",
       "items": [
+        {
+          "description": "Clinical Trial Proposal (Amendment Review) for Tanzanian Collaborators",
+          "amt": "750000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Amendment Review) for Tanzanian Students",
+          "amt": "250000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Expedited Review) for Tanzanian Collaborators",
+          "amt": "3875000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Expedited Review) for Tanzanian Students",
+          "amt": "390625.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Extension Review) for Tanzanian Collaborators",
+          "amt": "300000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Extension Review) for Tanzanian Students",
+          "amt": "125000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Ordinary Review) for Tanzanian Collaborators",
+          "amt": "2625000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Ordinary Review) for Tanzanian Students",
+          "amt": "390625.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Amendment Review) for Tanzanian Collaborators",
+          "amt": "300000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Amendment Review) for Tanzanian Students",
+          "amt": "250000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Appeal fee) for Tanzanian Collaborators",
+          "amt": "150000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Appeal fee) for Tanzanian Students",
+          "amt": "150000.00",
+          "currency": "TZS"
+        },
         {
           "description": "Ordinary Proposal (Expedited Review) for Tanzanian Collaborators",
           "amt": "1375000.00",
           "currency": "TZS"
         },
         {
+          "description": "Ordinary Proposal (Expedited Review) for Tanzanian Students",
+          "amt": "312500.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Extension Review) for Tanzanian Collaborators",
+          "amt": "150000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Extension Review) for Tanzanian Students",
+          "amt": "125000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Ordinary Review) for Tanzanian Collaborators",
+          "amt": "500000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Ordinary Review) for Tanzanian Students",
+          "amt": "312500.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Clinical Trial Proposal (Amendment Review) for International Collaborators",
+          "amt": "750.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Amendment Review) For International Students",
+          "amt": "375.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Expedited Review) for International Collaborators",
+          "amt": "5125.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Expedited Review) for International  Students",
+          "amt": "548.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Extension Review) for International Collaborators",
+          "amt": "300.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Extension Review) for International Students",
+          "amt": "125.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Ordinary Review) for International Collaborators",
+          "amt": "2625.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Clinical Trial Proposal (Ordinary Review) for International Students",
+          "amt": "548.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Amendment Review) for International Collaborators",
+          "amt": "450.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Amendment Review) For International Students",
+          "amt": "375.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Appeal fee) for International Collaborators",
+          "amt": "100.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Appeal fee) for International Students",
+          "amt": "75.00",
+          "currency": "USD"
+        },
+        {
           "description": "Ordinary Proposal (Expedited Review) for International Collaborators",
           "amt": "1375.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Expedited Review) for International  Students",
+          "amt": "438.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Extension Review) for International Collaborators",
+          "amt": "150.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Extension Review) for International Students",
+          "amt": "125.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Ordinary Review) for International Collaborators",
+          "amt": "750.00",
+          "currency": "USD"
+        },
+        {
+          "description": "Ordinary Proposal (Ordinary Review) for International Students",
+          "amt": "438.00",
           "currency": "USD"
         }
       ]
     }
   ]
 }
-
