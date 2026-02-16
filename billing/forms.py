@@ -163,6 +163,39 @@ class BillCancellationForm(forms.ModelForm):
         fields = ["reason"]
 
 
+class CancelledBillForm(forms.ModelForm):
+    class Meta:
+        model = CancelledBill
+        fields = ["bill", "reason"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Eligibility: only bills with a control number and not already cancelled.
+        bill_qs = (
+            Bill.objects.select_related("customer")
+            .filter(cntr_num__isnull=False, cancelledbill__isnull=True)
+            .order_by("-created_at")
+        )
+        self.fields["bill"].queryset = bill_qs
+        self.fields["bill"].widget.attrs.update(
+            {
+                "class": "bill-select2",
+                "data-placeholder": "Search bill by ID, customer, or control number...",
+            }
+        )
+
+        # Avoid rendering a massive <select> list; Select2 will populate via AJAX.
+        if not self.is_bound:
+            if self.instance.pk and getattr(self.instance, "bill_id", None):
+                bill = getattr(self.instance, "bill", None)
+                if bill:
+                    label = f"{bill.bill_id} | {bill.customer.get_name()} | {bill.currency} {bill.amt} | CN {bill.cntr_num}"
+                    self.fields["bill"].choices = [(bill.pk, label)]
+            else:
+                self.fields["bill"].choices = []
+
+
 class PaymentReconciliationForm(forms.ModelForm):
     trx_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}), required=False

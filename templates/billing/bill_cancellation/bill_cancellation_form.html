@@ -3,6 +3,16 @@
 
 {% block title %} Bill Cancellation Form {% endblock title %}
 
+{% block extrastyle %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container { width: 100% !important; }
+    /* Align Select2 with Semantic UI input height a bit better */
+    .select2-container--default .select2-selection--single { height: 38px; padding: 4px 8px; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+</style>
+{% endblock extrastyle %}
+
 {% block content %}
 <div class="sixteen wide column">
     <div class="ui clearing basic segment">
@@ -76,3 +86,30 @@
     </form>
 </div>
 {% endblock content %}
+
+{% block extrascript %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(function () {
+        const $bill = $('#id_bill');
+        if (!$bill.length) return;
+
+        $bill.select2({
+            placeholder: $bill.data('placeholder') || 'Search bill...',
+            allowClear: true,
+            ajax: {
+                url: "{% url 'billing:bill-search' %}",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term || '', page: params.page || 1 };
+                },
+                processResults: function (data) {
+                    return data;
+                },
+                cache: true
+            }
+        });
+    });
+</script>
+{% endblock extrascript %}
