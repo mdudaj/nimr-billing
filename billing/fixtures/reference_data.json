@@ -1,0 +1,52 @@
+{
+  "service_providers": [
+    {
+      "code": "SP19917",
+      "name": "National Institute for Medical Research",
+      "grp_code": "SP19917",
+      "sys_code": "TNIMR002",
+      "departments": [
+        {
+          "code": "CC1003029398740",
+          "name": "NIMR HQ",
+          "description": "National Institute for Medical Research, Headquarters",
+          "accounts": [
+            {
+              "bank": "CRDB",
+              "bank_swift_code": "CORUTZTZ",
+              "account_num": "0150433049200",
+              "currency": "TZS"
+            },
+            {
+              "bank": "CRDB",
+              "bank_swift_code": "CORUTZTZ",
+              "account_num": "0150433049200",
+              "currency": "USD"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "revenue_sources": [
+    {
+      "gfs_code": "140101",
+      "name": "Ethical clearance fee",
+      "category": "Intellectual Property Products",
+      "sub_category": "Research and Development",
+      "items": [
+        {
+          "description": "Ordinary Proposal (Expedited Review) for Tanzanian Collaborators",
+          "amt": "1375000.00",
+          "currency": "TZS"
+        },
+        {
+          "description": "Ordinary Proposal (Expedited Review) for International Collaborators",
+          "amt": "1375.00",
+          "currency": "USD"
+        }
+      ]
+    }
+  ]
+}
+
