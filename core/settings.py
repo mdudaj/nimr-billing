@@ -49,7 +49,7 @@ else:
     ALLOWED_HOSTS = ["http://127.0.0.1", "http://localhost"]
 
 # Add here your deployment HOSTS
-CSRF_TRUSTED_ORIGINS = [
+_DEFAULT_CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://localhost",
     "http://127.0.0.1:8000",
@@ -57,6 +57,12 @@ CSRF_TRUSTED_ORIGINS = [
     "https://10.0.10.53",
     "https://41.221.58.50",
 ]
+
+_csrf_env = os.environ.get("CSRF_TRUSTED_ORIGINS")
+if _csrf_env:
+    CSRF_TRUSTED_ORIGINS = [s.strip() for s in _csrf_env.split(",") if s.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = _DEFAULT_CSRF_TRUSTED_ORIGINS
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
