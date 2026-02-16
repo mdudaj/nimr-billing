@@ -4,7 +4,15 @@
 {% block title %}Billing Dashboard{% endblock title %}
 
 {% block content %}
-<div class="ui container dashboard-container">
+<div class="sixteen wide column">
+    <div class="ui clearing basic segment">
+        <h1 class="ui left floated header">Billing Dashboard</h1>
+        <a class="ui right floated button" href="{% url 'billing:financial-report' %}">
+            <i class="chart bar icon"></i>
+            Financial Reports
+        </a>
+    </div>
+
     <div class="ui three stackable cards">
         <!-- Total paid TZS invoices -->
         <div class="ui card">
@@ -66,7 +74,94 @@
             <div class="content">
                 <div class="header">Total USD Revenues</div>
                 <div class="description">
-                    <h1>{{ total_usd_revenues }}</h1>
+                    <h3 class="ui blue header">{{ total_paid_usd_invoices }}</h3>
+                    <p>All time collections (USD)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ui two column stackable grid" style="margin-top: 1rem;">
+        <div class="column">
+            <div class="ui segment">
+                <h3 class="ui header">Key KPIs</h3>
+                <div class="ui list">
+                    <div class="item"><strong>Bills issued today:</strong> {{ bills_today_count }}</div>
+                    <div class="item"><strong>Bills issued this month:</strong> {{ bills_month_count }}</div>
+                </div>
+                <h4 class="ui header">Collections Today</h4>
+                <table class="ui very basic compact table">
+                    <thead>
+                        <tr><th>Currency</th><th class="right aligned">Payments</th><th class="right aligned">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in paid_today_by_currency %}
+                        <tr>
+                            <td>{{ row.currency }}</td>
+                            <td class="right aligned">{{ row.payments_count }}</td>
+                            <td class="right aligned">{{ row.total_paid }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="center aligned">No collections today</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <h4 class="ui header">Collections This Month</h4>
+                <table class="ui very basic compact table">
+                    <thead>
+                        <tr><th>Currency</th><th class="right aligned">Payments</th><th class="right aligned">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in paid_month_by_currency %}
+                        <tr>
+                            <td>{{ row.currency }}</td>
+                            <td class="right aligned">{{ row.payments_count }}</td>
+                            <td class="right aligned">{{ row.total_paid }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="center aligned">No collections this month</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="ui segment">
+                <h3 class="ui header">Collections (Last 6 Months)</h3>
+                <table class="ui very basic table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>TZS</th>
+                            <th>USD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in monthly_collections %}
+                        <tr>
+                            <td>{{ row.month|date:"M Y" }}</td>
+                            <td>
+                                {{ row.TZS }}
+                                <div style="height:8px;background:#e0e1e2;margin-top:4px;">
+                                    <div style="height:8px;background:#21ba45;width:{{ row.tzs_pct|floatformat:0 }}%;"></div>
+                                </div>
+                            </td>
+                            <td>
+                                {{ row.USD }}
+                                <div style="height:8px;background:#e0e1e2;margin-top:4px;">
+                                    <div style="height:8px;background:#2185d0;width:{{ row.usd_pct|floatformat:0 }}%;"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="center aligned">No data</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="ui message">
+                    Tip: Use Financial Reports for quarter/year statements.
                 </div>
             </div>
         </div>

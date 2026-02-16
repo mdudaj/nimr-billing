@@ -110,3 +110,9 @@ class FinancialReportViewTestCase(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.context["totals_by_currency"])
+
+    def test_dashboard_loads_with_kpis(self):
+        self.client.login(email="reports@example.com", password="password")
+        resp = self.client.get(reverse("billing:billing-index"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Collections (Last 6 Months)")
