@@ -196,6 +196,12 @@ class CancelledBillForm(forms.ModelForm):
                 self.fields["bill"].choices = []
 
 
+class BillCurrencyUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Bill
+        fields = ["currency"]
+
+
 class PaymentReconciliationForm(forms.ModelForm):
     trx_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}), required=False

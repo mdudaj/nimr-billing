@@ -72,7 +72,7 @@
                 {% endif %}
 
                 <td>
-                    <a href="" class="ui icon button" data-tooltip="Replace Control Number" data-inverted="">
+                    <a href="{% url 'billing:bill-replace-control-number' bill.id %}" class="ui icon button" data-tooltip="Replace Control Number (cancel + update currency)" data-inverted="">
                         <i class="redo alternate icon"></i>
                     </a>
                 </td>
