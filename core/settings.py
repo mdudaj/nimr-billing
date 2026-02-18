@@ -327,12 +327,21 @@ EXCRATES_URL = os.environ.get("EXCRATES_URL")
 
 
 # Email Configuration
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "core.email_backend.EmailBackend"
 EMAIL_HOST = os.environ.get("EMAIL_HOST")
-EMAIL_PORT = os.environ.get("EMAIL_PORT")
+_email_port = os.environ.get("EMAIL_PORT")
+EMAIL_PORT = int(_email_port) if _email_port else None
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
-EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS")
+EMAIL_USE_TLS = str2bool(os.environ.get("EMAIL_USE_TLS", "False"))
+EMAIL_USE_SSL = str2bool(os.environ.get("EMAIL_USE_SSL", "False"))
+EMAIL_SSL_VERIFY = str2bool(os.environ.get("EMAIL_SSL_VERIFY", "True"))
+
+# Common SMTP convention: port 465 expects implicit SSL (not STARTTLS).
+# If port 465 is configured and EMAIL_USE_SSL is not explicitly set, default to SSL.
+if EMAIL_PORT == 465 and os.environ.get("EMAIL_USE_SSL") is None:
+    EMAIL_USE_SSL = True
+    EMAIL_USE_TLS = False
 
 # Support Email
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL")
