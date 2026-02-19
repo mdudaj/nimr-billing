@@ -124,7 +124,7 @@ def send_bill_document_email(self, delivery_id):
                 failure_reason="missing_payment",
             )
             return
-        attachment_name = f"{bill.bill_id}_Receipt.pdf"
+        attachment_name = f"{bill.bill_id}_Receipt_NatHREC.pdf"
         attachment_bytes = generate_receipt_pdf_bytes(payment)
     else:
         BillingEmailDelivery.objects.filter(id=delivery.id).update(
